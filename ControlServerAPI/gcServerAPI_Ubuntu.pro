@@ -1,15 +1,15 @@
-TEMPLATE = app
-CONFIG += console
+TEMPLATE = lib
 CONFIG -= app_bundle
 CONFIG -= qt
-CONFIG += c++11
+CONFIG += shared c++11
 DEFINES += PLATFORM_ccOS
-LIBS += -pthread
+QMAKE_CXXFLAGS = -fPIC
+QMAKE_CFLAGS = -fPIC
 QMAKE_LFLAGS += -lrt -lpthread
 QMAKE_EXT_CPP = .cpp
 QMAKE_EXT_H = .h .hpp .c
 
-TARGET=gcControlClient.exe
+TARGET=gcServerAPI.so
 target.path = /usr/bin/gcControl # path on device
 INSTALLS += target
 
@@ -22,10 +22,10 @@ ccOSMainsDIR = $${PWD}
 
 ############################################################ LIBs
 # Select All Libs
-## CONFIG += ccNOosAllLibs
+CONFIG += ccNOosAllLibs
 # Select All Devices
-## CONFIG += ccNOosAllDevs
-## CONFIG += ccOSDevs_ft232h
+CONFIG += ccNOosAllDevs
+CONFIG += ccOSDevs_ft232h
 
 include($${gcControlClientDIR}/gcControlClient.pri)
 
@@ -33,9 +33,9 @@ INCLUDEPATH += $$ccOSMainsDIR
 INCLUDEPATH += $$ccNOosPlatformDIR
 
 HEADERS += $$ccNOosPlatformDIR/Platform_ccOS.hpp
-HEADERS += $$ccOSMainsDIR/Application_Platform_Main.hpp
+HEADERS += $$ccOSMainsDIR/Application_Platform_API.hpp
 
-SOURCES += $$ccOSMainsDIR/Application_Platform_Main.cpp
+SOURCES += $$ccOSMainsDIR/Application_Platform_API.cpp
 
 
 message("Includes:")
