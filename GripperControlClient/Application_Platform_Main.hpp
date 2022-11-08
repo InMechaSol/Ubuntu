@@ -113,8 +113,8 @@ public:
         // link the api compute modules to the compute module
         UIServer_exeThread(&UIServer_data, &gcControl_compMod),
         // construct the console menu objects
-        Console1MenuInst(&((ccGripperStruct*)gcControl_compMod.getModuleDataPtr())->ConsoleMenu, nullptr),
-        Console2MenuInst(&gcControl_data.ConsoleMenu2, nullptr),
+        Console1MenuInst(&((ccGripperStruct*)gcControl_compMod.getModuleDataPtr())->ConsoleMenu, &UIServer_exeThread.theMainMenuNode),
+        Console2MenuInst(&gcControl_data.ConsoleMenu2, &UIServer_exeThread.theMainMenuNode),
         // link the api compute modules to the compute module
         IPGateway_exeThread(&IPGateway_data, &gcControl_compMod),
         FWCtrlClient_exeThread(&FWCtrlClient_data, &gcControl_compMod),

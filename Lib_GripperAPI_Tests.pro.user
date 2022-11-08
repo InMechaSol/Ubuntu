@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 8.0.0, 2022-11-02T09:07:39. -->
+<!-- Written by QtCreator 8.0.0, 2022-11-04T08:53:23. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -263,7 +263,23 @@
     <value type="bool" key="RunConfiguration.UseQmlDebuggerAuto">true</value>
     <value type="QString" key="RunConfiguration.WorkingDirectory.default">/home/geades/Lib_GripperAPI_Tests/Ubuntu/build-Lib_GripperAPI_Tests-Desktop_Qt_5_15_2_GCC_64bit-Debug/GUIAPITests</value>
    </valuemap>
-   <value type="qlonglong" key="ProjectExplorer.Target.RunConfigurationCount">2</value>
+   <valuemap type="QVariantMap" key="ProjectExplorer.Target.RunConfiguration.2">
+    <value type="bool" key="Analyzer.Perf.Settings.UseGlobalSettings">true</value>
+    <value type="bool" key="Analyzer.QmlProfiler.Settings.UseGlobalSettings">true</value>
+    <value type="bool" key="Analyzer.Valgrind.Settings.UseGlobalSettings">true</value>
+    <valuelist type="QVariantList" key="CustomOutputParsers"/>
+    <value type="int" key="PE.EnvironmentAspect.Base">2</value>
+    <valuelist type="QVariantList" key="PE.EnvironmentAspect.Changes"/>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">Qt4ProjectManager.Qt4RunConfiguration:/home/geades/Lib_GripperAPI_Tests/Ubuntu/ConsoleAPITests/ConsoleUI_Ubuntu.pro</value>
+    <value type="QString" key="ProjectExplorer.RunConfiguration.BuildKey">/home/geades/Lib_GripperAPI_Tests/Ubuntu/ConsoleAPITests/ConsoleUI_Ubuntu.pro</value>
+    <value type="bool" key="RunConfiguration.UseCppDebugger">false</value>
+    <value type="bool" key="RunConfiguration.UseCppDebuggerAuto">true</value>
+    <value type="bool" key="RunConfiguration.UseLibrarySearchPath">true</value>
+    <value type="bool" key="RunConfiguration.UseQmlDebugger">false</value>
+    <value type="bool" key="RunConfiguration.UseQmlDebuggerAuto">true</value>
+    <value type="QString" key="RunConfiguration.WorkingDirectory.default">/home/geades/Lib_GripperAPI_Tests/Ubuntu/build-Lib_GripperAPI_Tests-Desktop_Qt_5_15_2_GCC_64bit-Debug/ConsoleAPITests</value>
+   </valuemap>
+   <value type="qlonglong" key="ProjectExplorer.Target.RunConfigurationCount">3</value>
   </valuemap>
  </data>
  <data>
