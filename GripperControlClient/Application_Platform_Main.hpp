@@ -27,8 +27,6 @@
 #include "UIServerClass.hpp"
 #include "FWControlClientClass.hpp"
 #include "IPGatewayAPI.hpp"
-// Include the cross-platform tcp_comms library from ccOS
-#include "tcp_comms.h"
 // Include additional application files as needed
 #include <iostream>  // for cin/cout
 
@@ -68,7 +66,6 @@ public:
     UI_ServerClass UIServer_exeThread;
     struct UIServerStruct UIServer_data;
     consoleMenuClass Console1MenuInst;
-    consoleMenuClass Console2MenuInst;
 
     // IP Gateway api Compute Module
     IPGatewayAPI_Class IPGateway_exeThread;
@@ -77,6 +74,7 @@ public:
     // FW Control Client api Compute Module
     FWCtrlClient_Class FWCtrlClient_exeThread;
     struct FWCtrlClientStruct FWCtrlClient_data;
+    packetsAPIClass PacketsInst;
 
     // AI Control Server api Compute Module
     AICtrlServer_Class AICtrlServer_exeThread;
@@ -112,12 +110,13 @@ public:
                             ),
         // link the api compute modules to the compute module
         UIServer_exeThread(&UIServer_data, &gcControl_compMod),
-        // construct the console menu objects
+        // construct the console menu objects - link with ConsoleMenu from gripperFW layer - reuse
         Console1MenuInst(&((ccGripperStruct*)gcControl_compMod.getModuleDataPtr())->ConsoleMenu, &UIServer_exeThread.theMainMenuNode),
-        Console2MenuInst(&gcControl_data.ConsoleMenu2, &UIServer_exeThread.theMainMenuNode),
         // link the api compute modules to the compute module
-        IPGateway_exeThread(&IPGateway_data, &gcControl_compMod),
+        IPGateway_exeThread(&IPGateway_data, &gcControl_compMod),        
         FWCtrlClient_exeThread(&FWCtrlClient_data, &gcControl_compMod),
+        // construct the packets api object - link with PacketsAPI from gripperFW layer - reuse
+        PacketsInst(&((ccGripperStruct*)gcControl_compMod.getModuleDataPtr())->PacketsAPI),
         AICtrlServer_exeThread(&AICtrlServer_data, &gcControl_compMod),
 
         // link the device compute modules and the data objects on which they operate
@@ -134,7 +133,6 @@ public:
     {
         // Link UI Server and Console Menu Objects
         UIServer_data.uiPtrArray[0] = &Console1MenuInst;
-        UIServer_data.uiPtrArray[1] = &Console2MenuInst;
 
         // Prevent execution of api modules at ccNOos level - UI Server will handle for the ccACU application
         ((ccGripperStruct*)gcControl_compMod.getModuleDataPtr())->execAPIsMainLoop = ui8FALSE;

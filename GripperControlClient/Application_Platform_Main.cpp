@@ -44,11 +44,11 @@ void ReadConfigLine(struct configStruct* configStructPtrin)
     ;
 }
 
-void WritePacketBytes(struct packAPIStruct* uiStructPtrin)
+void WritePacketBytes(struct packAPIStruct* packStructPtrin)
 {
     ;
 }
-void ReadPacketBytes(struct packAPIStruct* uiStructPtrin)
+void ReadPacketBytes(struct packAPIStruct* packStructPtrin)
 {
     ;
 }
