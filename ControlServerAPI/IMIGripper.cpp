@@ -1,32 +1,7 @@
-/** \file Application_Platform_Main.hpp
-*   \brief Definitioin of Main application of the Gripper Control Client
-    \details Here we define an implementation of the device agnostic
-    application and serialization library.  This implementation declares
-    use of particular devices:
-    1) TCP for the UIServerClass
-    2) UDP for the FWControlClientClass
-
-    Begin by including all of the necessary building blocks for
-    1) The Device Agnostic, Cross-Platform Application Library
-    2) The Cross-Platform IO Devices
-        - (TCPdev for UIServerClass)
-        - (UDPdev for FWControlClientClass)
-    3) Any additional application files required
-    *this file should only ever be included by the *.cpp of main compilation unit
-
-    Then Define the structure of the device specifice application.
-     - 'class gcControl_ApplicationClass : public ccOSApplicationClass'
-     Define linking to platform specific execution system at construction
-     - 'gcControl_ApplicationClass(OSexecutionSystemClass* theExecutionSystemPtrIn)'
-*/
-
 // Include the Device Agnostic, Cross-Platform Application (DACPA) Library
 #include "osApp_Serialization.hpp"
 // Include the API Modules from the DACPA Library
-#include "ControlServerClass.hpp"
-#include "UIServerClass.hpp"
 #include "FWControlClientClass.hpp"
-#include "IPGatewayAPI.hpp"
 // Include additional application files as needed
 #include <iostream>  // for cin/cout
 
@@ -45,12 +20,7 @@
 ///
 /// All modules, data structures, and IO devices are declared and
 /// their construction is defined.
-/// - UI Server API Module with
-///   - the exe_thread and data
-///   - 2 instances of console menu class
-/// - IP Gateway Module and Data
 /// - FW Control Module and Data
-/// - UPS Device Module and Data
 ///
 ///
 /// ///////////////////////////////////////////////////////////
@@ -62,26 +32,10 @@ public:
     gcControl_Class gcControl_compMod;
     struct gcControlClientStruct gcControl_data;
 
-    // UI api Compute Module    
-    UI_ServerClass UIServer_exeThread;
-    struct UIServerStruct UIServer_data;
-    consoleMenuClass Console1MenuInst;
-
-    // IP Gateway api Compute Module
-    IPGatewayAPI_Class IPGateway_exeThread;
-    struct IPGatewayStruct IPGateway_data;
-
     // FW Control Client api Compute Module
     FWCtrlClient_Class FWCtrlClient_exeThread;
     struct FWCtrlClientStruct FWCtrlClient_data;
     packetsAPIClass PacketsInst;
-
-    // AI Control Server api Compute Module
-    AICtrlServer_Class AICtrlServer_exeThread;
-    struct AICtrlServerStruct AICtrlServer_data;
-
-    // UPS Device Module
-    UPS_Dev_Class UPS_exeThread;
 
     // Log and Config API Devices
     struct devicedatastruct StdIODevice = createDeviceStruct();
@@ -102,26 +56,13 @@ public:
         // link the ccACU compute module to its ccACU data instance
         // - and all of its exeThread Modules (API and Device Modules)
         gcControl_compMod(  &gcControl_data,
-                            &UIServer_exeThread,
-                            &IPGateway_exeThread,                            
-                            &AICtrlServer_exeThread,
-                            &UPS_exeThread,
                             &FWCtrlClient_exeThread
                             ),
         // link the api compute modules to the compute module
-        UIServer_exeThread(&UIServer_data, &gcControl_compMod),
-        // construct the console menu objects - link with ConsoleMenu from gripperFW layer - reuse
-        Console1MenuInst(&((ccGripperStruct*)gcControl_compMod.getModuleDataPtr())->ConsoleMenu, &UIServer_exeThread.theMainMenuNode),
-        // link the api compute modules to the compute module
-        IPGateway_exeThread(&IPGateway_data, &gcControl_compMod),        
         FWCtrlClient_exeThread(&FWCtrlClient_data, &gcControl_compMod),
         // construct the packets api object - link with PacketsAPI from gripperFW layer - reuse
         PacketsInst(&((ccGripperStruct*)gcControl_compMod.getModuleDataPtr())->PacketsAPI),
-        AICtrlServer_exeThread(&AICtrlServer_data, &gcControl_compMod),
-
         // link the device compute modules and the data objects on which they operate
-        UPS_exeThread(),
-
         // create ccNOos exeSys linking for
         // - main process execution of linked compute modules
         // - systick execution of linked compute modules
@@ -131,10 +72,8 @@ public:
         systickListHead(nullptr, nullptr),
         exceptionListHead(&gcControl_compMod, nullptr)
     {
-        // Link UI Server and Console Menu Objects
-        UIServer_data.uiPtrArray[0] = &Console1MenuInst;
 
-        // Prevent execution of api modules at ccNOos level - UI Server will handle for the ccACU application
+        // Prevent execution of api modules at ccNOos level - UI Server will handle for the ccOS application
         ((ccGripperStruct*)gcControl_compMod.getModuleDataPtr())->execAPIsMainLoop = ui8FALSE;
         ((ccGripperStruct*)gcControl_compMod.getModuleDataPtr())->execDEVsMainLoop = ui8FALSE;
 
@@ -158,18 +97,9 @@ public:
         StdConfStruct.devptr = &StdIODevice;
         //stdInThread = std::thread(readStdIn, &StdConfStruct.devptr->inbuff.charbuff[0]);
 
-        theExecutionSystemPtr->exeThreadModuleList.emplace_back(&UIServer_exeThread);
-        theExecutionSystemPtr->exeThreadModuleList.emplace_back(&IPGateway_exeThread);
         theExecutionSystemPtr->exeThreadModuleList.emplace_back(&FWCtrlClient_exeThread);
-        theExecutionSystemPtr->exeThreadModuleList.emplace_back(&AICtrlServer_exeThread);
-        theExecutionSystemPtr->exeThreadModuleList.emplace_back(&UPS_exeThread);
-
         // Start the exe_thread modules
-        theExecutionSystemPtr->exeThreadList.emplace_back(new std::thread(&UI_ServerClass::ThreadExecute, std::ref(UIServer_exeThread)));
-        theExecutionSystemPtr->exeThreadList.emplace_back(new std::thread(&IPGatewayAPI_Class::ThreadExecute, std::ref(IPGateway_exeThread)));
         theExecutionSystemPtr->exeThreadList.emplace_back(new std::thread(&FWCtrlClient_Class::ThreadExecute, std::ref(FWCtrlClient_exeThread)));
-        theExecutionSystemPtr->exeThreadList.emplace_back(new std::thread(&AICtrlServer_Class::ThreadExecute, std::ref(AICtrlServer_exeThread)));
-        theExecutionSystemPtr->exeThreadList.emplace_back(new std::thread(&UPS_Dev_Class::ThreadExecute, std::ref(UPS_exeThread)));
     }
 
 
@@ -184,10 +114,163 @@ public:
     }
 };
 
+// Include the Device Specific Application Class
+#include "IMIGripper.hpp"
+// Include the Platform Specific Execution System
+#include "Platform_ccOS.hpp"
+// Create the Platform and Device Specific Application by linking
+// the application and execution system at construction
+gcControl_ApplicationClass theApplicationExample(&theExecutionSystem);
+
+////////////////////////////////////////////////////////////////////
+// if applicable, define any remaining ccNOos level functions that
+// will depend on the application instnace in some way
+//
+void linkAPIioDevices(struct ccGripperStruct* ccGripperStructPtrIn)
+{
+    theApplicationExample.linkAPIioDevices();
+
+}
+void GetMenuChars(struct uiStruct* uiStructPtrin)
+{
+    ;
+}
+void WriteMenuLine(struct uiStruct* uiStructPtrin)
+{
+    ;
+
+}
+void WriteLogLine(struct logStruct* logStructPtrin)
+{
+    ;
+}
+void ReadConfigLine(struct configStruct* configStructPtrin)
+{
+    ;
+}
+
+void WritePacketBytes(struct packAPIStruct* packStructPtrin)
+{
+    ;
+}
+void ReadPacketBytes(struct packAPIStruct* packStructPtrin)
+{
+    ;
+}
+
+void readMotorData(struct smartMotorStruct* smartMotorStructPtrIn)
+{
+    ;
+}
+void writeMotorData(struct smartMotorStruct* smartMotorStructPtrIn)
+{
+    ;
+}
+UI_32 getMillis() {
+    UI_32 tempepep = theExecutionSystem.getExeDataPtr()->uSecTicks;
+    return tempepep/1000; }
+
+//////////////////////////////////////////////////////////////////
+// Execution
+// Define the version functions using the template
+ccOSVersionsTemplate
+ccGripperVersionsTemplate
+// Define the main function
+int apimain()
+{
+    // Start the systick thread
+    std::thread systickThread(&OSexecutionSystemClass::ExecuteSysTick, std::ref(theExecutionSystem));
+
+    // Start the exe_thread modules
+    theApplicationExample.LinkAndStartExeThreads();
+
+    // run setup
+    theExecutionSystem.ExecuteSetup();
+    for (;;)
+    {
+        // run loop
+        theExecutionSystem.ExecuteLoop();
+    }
+    return RETURN_ERROR;
+}
+
+//////////////////////////////////////////////////////////////////
+// Finally
+// Define the API class
+
+IMIGripper::IMIGripper():apiThread(&apimain){}
+
+bool IMIGripper::isConnected()
+{
+    return theApplicationExample.FWCtrlClient_exeThread.FWConnected;
+}
+bool IMIGripper::newData()
+{
+    return theApplicationExample.FWCtrlClient_exeThread.FreshDataIn;
+}
+void IMIGripper::clearNewDataFlag()
+{
+    theApplicationExample.FWCtrlClient_exeThread.FreshDataIn = false;
+}
 
 
-//ccOS_APP_CLASS
+#define FWDataPtr theApplicationExample.gcControl_compMod.getGripperFWDataPtr()
+void IMIGripper::stop(uint32_t u32Mask)
+{
+    FWDataPtr->PackageCMDStop = ui8TRUE;
+}
+void IMIGripper::close(uint32_t u32Mask, float fStrengthPct)
+{
+    FWDataPtr->PackageCMDClose = ui8TRUE;
+}
+void IMIGripper::open(uint32_t u32Mask)
+{
+    FWDataPtr->PackageCMDOpen = ui8TRUE;
+}
+IMIGripper::joints_state IMIGripper::get_positions()
+{
+    IMIGripper::joints_state pos;
 
+    for(int i=0; i<C_INSTALLED_NUM_OF_MOTORS; i++)
+        pos[i] = FWDataPtr->SmartMotors[i].RotorPositionFbk;
 
+    return pos;
+}
 
+///////////////////////////////////////////////////////////////////////////
+//
+//
+enum SPDSelector GripperSPD::getSPDSelector()
+{
+    return GripperVarSelection;
+}
 
+GripperSPD::GripperSPD(enum SPDSelector GripperVarSelectionIn, IMIGripper* GripperAPIPtrIn)
+{
+    GripperVarSelection = GripperVarSelectionIn;
+    GripperAPIPtr =GripperAPIPtrIn;
+}
+const char* GripperSPD::getSPDLabelString(enum SPDSelector GripperVarSelectionIn)
+{
+    switch(GripperVarSelectionIn)
+    {
+    case spdPos0: return "Position0";
+    case spdPos1: return "Position1";
+    case spdPos2: return "Position2";
+    case spdPos3: return "Position3";
+
+    default: return "Invalid!";
+    }
+}
+float GripperSPD::getSPDFloatValue()
+{
+    switch(GripperVarSelection)
+    {
+    case spdPos0: return FWDataPtr->SmartMotors[0].RotorPositionFbk;
+    case spdPos1: return FWDataPtr->SmartMotors[1].RotorPositionFbk;
+    case spdPos2: return FWDataPtr->SmartMotors[2].RotorPositionFbk;
+    case spdPos3: return FWDataPtr->SmartMotors[3].RotorPositionFbk;
+
+    default: return 0.0;
+    }
+}

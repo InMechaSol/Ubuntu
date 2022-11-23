@@ -1,8 +1,14 @@
-QT       += core gui
+QT       += core gui charts
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
-CONFIG += c++17
+CONFIG += c++11
+
+QMAKE_LFLAGS += --verbose -lrt -lpthread
+INCLUDEPATH += $${PWD}/gripperAPI
+DEPENDPATH += $${PWD}/gripperAPI
+LIBS += -L$${PWD}/gripperAPI -lGripperAPI
+
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
@@ -13,7 +19,8 @@ SOURCES += \
     mainwindow.cpp
 
 HEADERS += \
-    mainwindow.h
+    mainwindow.h \
+    $${PWD}/gripperAPI/IMIGripper.hpp
 
 FORMS += \
     mainwindow.ui

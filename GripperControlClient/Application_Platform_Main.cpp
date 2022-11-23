@@ -62,7 +62,8 @@ void writeMotorData(struct smartMotorStruct* smartMotorStructPtrIn)
     ;
 }
 UI_32 getMillis() {
-    return getuSecTicks()/1000; }
+    UI_32 tempepep = theExecutionSystem.getExeDataPtr()->uSecTicks;
+    return tempepep/1000; }
 //////////////////////////////////////////////////////////////////
 // Finally
 // Define the version functions using the template

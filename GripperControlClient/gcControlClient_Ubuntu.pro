@@ -27,6 +27,8 @@ ccOSMainsDIR = $${PWD}
 ## CONFIG += ccNOosAllDevs
 ## CONFIG += ccOSDevs_ft232h
 
+CONFIG += gcControlService
+
 include($${gcControlClientDIR}/gcControlClient.pri)
 
 INCLUDEPATH += $$ccOSMainsDIR

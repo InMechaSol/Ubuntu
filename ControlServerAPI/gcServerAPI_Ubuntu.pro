@@ -1,7 +1,7 @@
 TEMPLATE = lib
 CONFIG -= app_bundle
 CONFIG -= qt
-CONFIG += shared c++11
+CONFIG += staticlib c++11
 DEFINES += PLATFORM_ccOS
 QMAKE_CXXFLAGS = -fPIC
 QMAKE_CFLAGS = -fPIC
@@ -9,9 +9,7 @@ QMAKE_LFLAGS += -lrt -lpthread
 QMAKE_EXT_CPP = .cpp
 QMAKE_EXT_H = .h .hpp .c
 
-TARGET=gcServerAPI.so
-target.path = /usr/bin/gcControl # path on device
-INSTALLS += target
+
 
 gcControlClientDIR = $$absolute_path($${PWD}/../../Lib_GripperAPI/)
 ccNOosDIR = $$absolute_path($${PWD}/../../ccNOos/)
@@ -20,12 +18,23 @@ gcControlFWDIR = $$absolute_path($${PWD}/../../Lib_GripperFW/)
 ccNOosPlatformDIR = $${ccNOosDIR}/tests/testPlatforms
 ccOSMainsDIR = $${PWD}
 
+
+
+
 ############################################################ LIBs
 # Select All Libs
-CONFIG += ccNOosAllLibs
+#CONFIG += ccNOosAllLibs
 # Select All Devices
-CONFIG += ccNOosAllDevs
-CONFIG += ccOSDevs_ft232h
+#CONFIG += ccNOosAllDevs
+#CONFIG += ccOSDevs_ft232h
+
+TARGET = GripperAPI
+target.path = $${PWD}/../GUIAPITests/gripperAPI
+INSTALLS += target
+headersDataFiles.path = $${PWD}/../GUIAPITests/gripperAPI
+headersDataFiles.files = $$ccOSMainsDIR/IMIGripper.hpp
+INSTALLS += headersDataFiles
+
 
 include($${gcControlClientDIR}/gcControlClient.pri)
 
@@ -33,9 +42,9 @@ INCLUDEPATH += $$ccOSMainsDIR
 INCLUDEPATH += $$ccNOosPlatformDIR
 
 HEADERS += $$ccNOosPlatformDIR/Platform_ccOS.hpp
-HEADERS += $$ccOSMainsDIR/Application_Platform_API.hpp
+HEADERS += $$ccOSMainsDIR/IMIGripper.hpp
 
-SOURCES += $$ccOSMainsDIR/Application_Platform_API.cpp
+SOURCES += $$ccOSMainsDIR/IMIGripper.cpp
 
 
 message("Includes:")
