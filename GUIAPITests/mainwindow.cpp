@@ -9,7 +9,6 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , GripperAPI()
     , ui(new Ui::MainWindow)
-    , ChildWindowMaxMins()
 {
     // temporary status message
     ui->setupUi(this);
@@ -37,8 +36,15 @@ MainWindow::MainWindow(QWidget *parent)
     }
 
     duplicatChartAction = ui->menubar->addAction(" | Launch New Chart");
+    duplicatChartAction->setEnabled(false);
     connect(duplicatChartAction, SIGNAL(triggered()), this, SLOT(LaunchNewWindow()));
 
+    pauseRunChartsAction = ui->menubar->addAction(" | Pause Chart");
+    connect(pauseRunChartsAction, SIGNAL(triggered()), this, SLOT(RunPausePlots()));
+
+    clearChartsAction = ui->menubar->addAction(" | Clear Chart");
+    clearChartsAction->setEnabled(false);
+    connect(clearChartsAction, SIGNAL(triggered()), this, SLOT(ClearPlots()));
 
     // Statusbar Labels
     ConnectedLabel = new QLabel("Gripper: Not Connected");
@@ -91,6 +97,32 @@ void MainWindow::Close()
     else
         statusBar()->showMessage(tr("Not Connected..."));
 }
+void MainWindow::RunPausePlots()
+{
+    runPlots = !runPlots;
+    if(runPlots)
+    {
+        pauseRunChartsAction->setText(" | Pause Charts");
+        clearChartsAction->setEnabled(false);
+    }
+    else
+    {
+        pauseRunChartsAction->setText(" | Run Charts");
+        clearChartsAction->setEnabled(true);
+    }
+
+}
+
+void MainWindow::ClearPlots()
+{
+    if(AllSPDLineSeries!=nullptr)
+    {
+        for(int j = 0; j < AllSPDLineSeries->count(); j++)
+        {
+            AllSPDLineSeries->at(j)->clearSeriesData();
+        }
+    }
+}
 void MainWindow::setNewMainChart()
 {
     mainChart->setChart(new QtCharts::QChart());
@@ -109,8 +141,9 @@ void MainWindow::setNewMainChart()
     mainChart->chart()->addAxis(axisY, Qt::AlignLeft);
 }
 
-void MainWindow::scalePlots(struct maxMinstruct limits, QtCharts::QChart* chartPtr)
+void MainWindow::scalePlots(QtCharts::QChart* chartPtr)
 {
+    struct maxMinstruct limits = {std::numeric_limits<float>::max(), -std::numeric_limits<float>::max(), std::numeric_limits<float>::max(),-std::numeric_limits<float>::max()};
     // determine max min from all spds
     if(AllSPDLineSeries!=nullptr)
     {
@@ -152,7 +185,7 @@ void MainWindow::LatchAndUpdate()
             QString posLabel = " | Rotor Pos:";
             IMIGripper::joints_state s = GripperAPI.get_positions();
             for(int k = 0; k<4; k++)
-                posLabel += " "+QString::number(s[k])+",";
+                posLabel += " "+QString::number(s[k],'F',3)+",";
             PositionsLabel->setText(posLabel);
         }
         else
@@ -169,7 +202,7 @@ void MainWindow::LatchAndUpdate()
         else
             MotorsStatusLabel->setText(" | Motor Status: ??, ??, ??, ??");
 
-        // update plot series
+        // update plot series        
         if(AllSPDLineSeries!=nullptr)
         {
             for(int j = 0; j < AllSPDLineSeries->count(); j++)
@@ -183,13 +216,13 @@ void MainWindow::LatchAndUpdate()
         }
 
         // update plots
-        scalePlots(mainChartMaxMin, mainChart->chart());
+        scalePlots(mainChart->chart());
 
         if(ChildWindows!=nullptr)
         {
             for(int i = 0; i< ChildWindows->count(); i++)
             {
-                scalePlots(ChildWindowMaxMins.at(i), ChildWindows->at(i)->chart());
+                scalePlots(ChildWindows->at(i)->chart());
 
             }
         }
@@ -198,13 +231,17 @@ void MainWindow::LatchAndUpdate()
     // latch to tempdata, if new data
     if(GripperAPI.newData())
     {
-        if(AllSPDLineSeries!=nullptr)
+        if(runPlots)
         {
-            for(int j = 0; j < AllSPDLineSeries->count(); j++)
+            if(AllSPDLineSeries!=nullptr)
             {
-                AllSPDLineSeries->at(j)->LatchTempData();
+                for(int j = 0; j < AllSPDLineSeries->count(); j++)
+                {
+                    AllSPDLineSeries->at(j)->LatchTempData();
+                }
             }
         }
+
         GripperAPI.clearNewDataFlag();
     }
     cycleCounter++;
@@ -215,7 +252,6 @@ void MainWindow::LaunchNewWindow()
     {
         ChildWindows = new QList<QtCharts::QChartView*>();
     }
-    ChildWindowMaxMins.append(mainChartMaxMin);
     ChildWindows->append(new QtCharts::QChartView());
     ChildWindows->at(ChildWindows->count()-1)->show();    
     ChildWindows->at(ChildWindows->count()-1)->setChart(mainChart->chart());
@@ -226,6 +262,7 @@ void MainWindow::LaunchNewWindow()
     {
         SPDSelectionMenu->actions().at(i)->setChecked(false);
     }
+    duplicatChartAction->setEnabled(false);
 }
 void MainWindow::closeEvent(QCloseEvent *event)
 {
@@ -276,7 +313,10 @@ void MainWindow::ToggleSPDSetting()
     }
 
     mainChart->chart()->update();
-
+    if(AllSPDLineSeries->count()>0)
+        duplicatChartAction->setEnabled(true);
+    else
+        duplicatChartAction->setEnabled(false);
 }
 
 SPDLineSeriesMap::SPDLineSeriesMap(enum SPDSelector GripperVarSelectionIn, IMIGripper* GripperAPIPtrIn, QtCharts::QChart* spdChartPtr):
@@ -325,4 +365,13 @@ bool SPDLineSeriesMap::hasTempData()
 void SPDLineSeriesMap::clearTempData()
 {
     tempXY.clear();
+}
+void SPDLineSeriesMap::clearSeriesData()
+{
+    tempXY.clear();
+    spdLine.clear();
+    maxTime = 0;
+    minTime = std::numeric_limits<unsigned int>::max();
+    maxY = -std::numeric_limits<float>::max();
+    minY = std::numeric_limits<float>::max();
 }

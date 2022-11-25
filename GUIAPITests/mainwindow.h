@@ -41,6 +41,7 @@ public:
     float getMaxY(){return maxY;}
     float getMinY(){return minY;}
     QtCharts::QChart* getSPDChartPtr(){return spdChart;}
+    void clearSeriesData();
 };
 
 class MainWindow : public QMainWindow
@@ -64,19 +65,20 @@ private slots:
     void LaunchNewWindow();
     void ToggleSPDSetting();
     void LatchAndUpdate();
+    void RunPausePlots();
+    void ClearPlots();
 
-private:    
+private:
+    bool runPlots = true;
     struct maxMinstruct
     {
       float minX, maxX, minY, maxY;
     };
-    void scalePlots(struct maxMinstruct limits, QtCharts::QChart* chartPtr);
+    void scalePlots(QtCharts::QChart* chartPtr);
     void setNewMainChart();
     Ui::MainWindow *ui = nullptr;
     QtCharts::QChartView* mainChart = nullptr;
-    struct maxMinstruct mainChartMaxMin = {std::numeric_limits<float>::max(), -std::numeric_limits<float>::max(), std::numeric_limits<float>::max(),-std::numeric_limits<float>::max()};
     QList<QtCharts::QChartView*> *ChildWindows = nullptr;
-    QList<struct maxMinstruct> ChildWindowMaxMins;
     QList<SPDLineSeriesMap*> *AllSPDLineSeries = nullptr;
 
     QMenu *SPDSelectionMenu = nullptr;
@@ -86,6 +88,8 @@ private:
     QAction *openAction = nullptr;
     QAction *closeAction = nullptr;
     QAction *duplicatChartAction = nullptr;
+    QAction *pauseRunChartsAction = nullptr;
+    QAction *clearChartsAction = nullptr;
 
     QLabel *ConnectedLabel = nullptr;
     QLabel *PositionsLabel = nullptr;
