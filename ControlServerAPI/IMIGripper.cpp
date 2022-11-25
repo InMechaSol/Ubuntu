@@ -215,6 +215,11 @@ void IMIGripper::clearNewDataFlag()
 
 
 #define FWDataPtr theApplicationExample.gcControl_compMod.getGripperFWDataPtr()
+
+unsigned int IMIGripper::getFWTimeStamp()
+{
+    return FWDataPtr->TimeStamp;
+}
 void IMIGripper::stop(uint32_t u32Mask)
 {
     FWDataPtr->PackageCMDStop = ui8TRUE;
@@ -250,6 +255,10 @@ GripperSPD::GripperSPD(enum SPDSelector GripperVarSelectionIn, IMIGripper* Gripp
     GripperVarSelection = GripperVarSelectionIn;
     GripperAPIPtr =GripperAPIPtrIn;
 }
+IMIGripper* GripperSPD::getGripperAPIPtr()
+{
+    return GripperAPIPtr;
+}
 const char* GripperSPD::getSPDLabelString(enum SPDSelector GripperVarSelectionIn)
 {
     switch(GripperVarSelectionIn)
@@ -274,3 +283,4 @@ float GripperSPD::getSPDFloatValue()
     default: return 0.0;
     }
 }
+

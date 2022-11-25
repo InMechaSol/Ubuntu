@@ -1,13 +1,15 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include <QMenu>
-
+#include <QAbstractAxis>
+#include <QValueAxis>
 
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , GripperAPI()
-    , ui(new Ui::MainWindow)    
+    , ui(new Ui::MainWindow)
+    , ChildWindowMaxMins()
 {
     // temporary status message
     ui->setupUi(this);
@@ -52,11 +54,8 @@ MainWindow::MainWindow(QWidget *parent)
     // The Main ChartView
     AllSPDLineSeries = new QList<SPDLineSeriesMap*>();
     mainChart = new QtCharts::QChartView();
-    mainChart->setChart(new QtCharts::QChart());
-    mainChart->chart()->legend()->setAlignment(Qt::AlignBottom);
-    mainChart->chart()->legend()->setVisible(true);
-    mainChart->chart()->setTitle("My First Plot");
-    mainChart->chart()->createDefaultAxes();
+    setNewMainChart();
+
     this->setCentralWidget(mainChart);
 
     // The latch / update timer
@@ -92,6 +91,51 @@ void MainWindow::Close()
     else
         statusBar()->showMessage(tr("Not Connected..."));
 }
+void MainWindow::setNewMainChart()
+{
+    mainChart->setChart(new QtCharts::QChart());
+    mainChart->chart()->legend()->setAlignment(Qt::AlignBottom);
+    mainChart->chart()->legend()->setVisible(true);
+    //mainChart->chart()->setTitle("My First Plot");
+
+    QtCharts::QValueAxis *axisX = new QtCharts::QValueAxis();
+    //axisX->setTickCount(10);
+    axisX->setTitleText("FW Time");
+    mainChart->chart()->addAxis(axisX, Qt::AlignBottom);
+
+    QtCharts::QValueAxis *axisY = new QtCharts::QValueAxis();
+    axisY->setLabelFormat("%f");
+    //axisY->setTitleText("Sunspots count");
+    mainChart->chart()->addAxis(axisY, Qt::AlignLeft);
+}
+
+void MainWindow::scalePlots(struct maxMinstruct limits, QtCharts::QChart* chartPtr)
+{
+    // determine max min from all spds
+    if(AllSPDLineSeries!=nullptr)
+    {
+        for(int j = 0; j < AllSPDLineSeries->count(); j++)
+        {
+            if(chartPtr==AllSPDLineSeries->at(j)->getSPDChartPtr())
+            {
+                if(AllSPDLineSeries->at(j)->getMinTime()<limits.minX)
+                    limits.minX=AllSPDLineSeries->at(j)->getMinTime();
+                if(AllSPDLineSeries->at(j)->getMaxTime()>limits.maxX)
+                    limits.maxX=AllSPDLineSeries->at(j)->getMaxTime();
+
+                if(AllSPDLineSeries->at(j)->getMinY()<limits.minY)
+                    limits.minY=AllSPDLineSeries->at(j)->getMinY();
+                if(AllSPDLineSeries->at(j)->getMaxY()>limits.maxY)
+                    limits.maxY=AllSPDLineSeries->at(j)->getMaxY();
+            }
+        }
+    }
+
+    // apply scaling to plot axes
+    QList<QtCharts::QAbstractAxis*> chartAxes = chartPtr->axes();
+    chartAxes.at(0)->setRange(limits.minX, limits.maxX);
+    chartAxes.at(1)->setRange(limits.minY, limits.maxY);
+}
 void MainWindow::LatchAndUpdate()
 {
     static unsigned int cycleCounter = 0;
@@ -99,9 +143,9 @@ void MainWindow::LatchAndUpdate()
     {
         // update live status
         if(GripperAPI.isConnected())
-            ConnectedLabel->setText("Gripper: Connected");
+            ConnectedLabel->setText("FW Time: "+QString::number(GripperAPI.getFWTimeStamp()));
         else
-            ConnectedLabel->setText("Gripper: Not Connected!");
+            ConnectedLabel->setText("FW Time: Not Connected!");
 
         if(GripperAPI.isConnected())
         {
@@ -125,25 +169,40 @@ void MainWindow::LatchAndUpdate()
         else
             MotorsStatusLabel->setText(" | Motor Status: ??, ??, ??, ??");
 
+        // update plot series
+        if(AllSPDLineSeries!=nullptr)
+        {
+            for(int j = 0; j < AllSPDLineSeries->count(); j++)
+            {
+                if(AllSPDLineSeries->at(j)->hasTempData())
+                {
+                    AllSPDLineSeries->at(j)->UpdateSeries();
+                    AllSPDLineSeries->at(j)->clearTempData();
+                }
+            }
+        }
+
         // update plots
-        mainChart->repaint();
+        scalePlots(mainChartMaxMin, mainChart->chart());
+
         if(ChildWindows!=nullptr)
         {
             for(int i = 0; i< ChildWindows->count(); i++)
             {
-                ChildWindows->at(i)->repaint();
+                scalePlots(ChildWindowMaxMins.at(i), ChildWindows->at(i)->chart());
+
             }
         }
     }
 
-    // update series, if new data
+    // latch to tempdata, if new data
     if(GripperAPI.newData())
     {
         if(AllSPDLineSeries!=nullptr)
         {
             for(int j = 0; j < AllSPDLineSeries->count(); j++)
             {
-                AllSPDLineSeries->at(j)->UpdateSeries();
+                AllSPDLineSeries->at(j)->LatchTempData();
             }
         }
         GripperAPI.clearNewDataFlag();
@@ -156,15 +215,13 @@ void MainWindow::LaunchNewWindow()
     {
         ChildWindows = new QList<QtCharts::QChartView*>();
     }
+    ChildWindowMaxMins.append(mainChartMaxMin);
     ChildWindows->append(new QtCharts::QChartView());
-    ChildWindows->at(ChildWindows->count()-1)->show();
+    ChildWindows->at(ChildWindows->count()-1)->show();    
     ChildWindows->at(ChildWindows->count()-1)->setChart(mainChart->chart());
-    ChildWindows->at(ChildWindows->count()-1)->setWindowTitle("Gripper ChartView");
-    mainChart->setChart(new QtCharts::QChart());
-    mainChart->chart()->legend()->setAlignment(Qt::AlignBottom);
-    mainChart->chart()->legend()->setVisible(true);
-    mainChart->chart()->setTitle("My Next Plot");
-    mainChart->chart()->createDefaultAxes();
+    ChildWindows->at(ChildWindows->count()-1)->setWindowTitle("Gripper FW Plot");
+
+    setNewMainChart();
     for(int i =0; i<SPDSelectionMenu->actions().count(); i++)
     {
         SPDSelectionMenu->actions().at(i)->setChecked(false);
@@ -224,12 +281,14 @@ void MainWindow::ToggleSPDSetting()
 
 SPDLineSeriesMap::SPDLineSeriesMap(enum SPDSelector GripperVarSelectionIn, IMIGripper* GripperAPIPtrIn, QtCharts::QChart* spdChartPtr):
     spd(GripperVarSelectionIn,GripperAPIPtrIn),
-    spdLine()
+    spdLine(),
+    tempXY()
 {
     spdChart = spdChartPtr;
     spdLine.setName(GripperSPD::getSPDLabelString(GripperVarSelectionIn));
     spdChart->addSeries(&spdLine);
-
+    spdLine.attachAxis(spdChart->axes().at(0));
+    spdLine.attachAxis(spdChart->axes().at(1));
 }
 
 QtCharts::QLineSeries* SPDLineSeriesMap::isOnChart(enum SPDSelector GripperVarSelectionIn,  QtCharts::QChart* spdChartPtr)
@@ -239,8 +298,31 @@ QtCharts::QLineSeries* SPDLineSeriesMap::isOnChart(enum SPDSelector GripperVarSe
     else
         return nullptr;
 }
+bool SPDLineSeriesMap::isOnChart(QtCharts::QChart* spdChartPtr)
+{
+    return (spdChart==spdChartPtr);
+}
 void SPDLineSeriesMap::UpdateSeries()
 {
-    static unsigned int samples =0;
-    spdLine.append(samples++ ,spd.getSPDFloatValue());
+    spdLine.append(tempXY);
+}
+void SPDLineSeriesMap::LatchTempData()
+{
+    if(spd.getGripperAPIPtr()->getFWTimeStamp()>maxTime)
+        maxTime = spd.getGripperAPIPtr()->getFWTimeStamp();
+    if(spd.getGripperAPIPtr()->getFWTimeStamp()<minTime)
+        minTime = spd.getGripperAPIPtr()->getFWTimeStamp();
+    if(spd.getSPDFloatValue()>maxY)
+        maxY = spd.getSPDFloatValue();
+    if(spd.getSPDFloatValue()<minY)
+        minY = spd.getSPDFloatValue();
+    tempXY.append( *(new QPointF(spd.getGripperAPIPtr()->getFWTimeStamp(),spd.getSPDFloatValue())));
+}
+bool SPDLineSeriesMap::hasTempData()
+{
+    return (tempXY.count()>0);
+}
+void SPDLineSeriesMap::clearTempData()
+{
+    tempXY.clear();
 }

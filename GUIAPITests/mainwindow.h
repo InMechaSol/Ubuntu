@@ -6,7 +6,9 @@
 #include <QList>
 #include <QChartView>
 #include <QLineSeries>
+#include <QPointF>
 #include <QTimer>
+#include <limits>
 #include "IMIGripper.hpp"
 
 QT_BEGIN_NAMESPACE
@@ -19,11 +21,26 @@ private:
     GripperSPD spd;
     QtCharts::QLineSeries spdLine;
     QtCharts::QChart* spdChart = nullptr;
+    QList<QPointF> tempXY;
+    unsigned int minTime = std::numeric_limits<unsigned int>::max();
+    unsigned int maxTime = 0;
+    float minY = std::numeric_limits<float>::max();
+    float maxY = -std::numeric_limits<float>::max();
+
 
 public:
     SPDLineSeriesMap(enum SPDSelector GripperVarSelectionIn, IMIGripper* GripperAPIPtrIn, QtCharts::QChart* spdChartPtr);
     QtCharts::QLineSeries* isOnChart(enum SPDSelector GripperVarSelectionIn,  QtCharts::QChart* spdChartPtr);
+    bool isOnChart(QtCharts::QChart* spdChartPtr);
     void UpdateSeries();
+    void LatchTempData();
+    bool hasTempData();
+    void clearTempData();
+    unsigned int getMaxTime(){return maxTime;}
+    unsigned int getMinTime(){return minTime;}
+    float getMaxY(){return maxY;}
+    float getMinY(){return minY;}
+    QtCharts::QChart* getSPDChartPtr(){return spdChart;}
 };
 
 class MainWindow : public QMainWindow
@@ -49,11 +66,19 @@ private slots:
     void LatchAndUpdate();
 
 private:    
+    struct maxMinstruct
+    {
+      float minX, maxX, minY, maxY;
+    };
+    void scalePlots(struct maxMinstruct limits, QtCharts::QChart* chartPtr);
+    void setNewMainChart();
     Ui::MainWindow *ui = nullptr;
     QtCharts::QChartView* mainChart = nullptr;
-
+    struct maxMinstruct mainChartMaxMin = {std::numeric_limits<float>::max(), -std::numeric_limits<float>::max(), std::numeric_limits<float>::max(),-std::numeric_limits<float>::max()};
     QList<QtCharts::QChartView*> *ChildWindows = nullptr;
+    QList<struct maxMinstruct> ChildWindowMaxMins;
     QList<SPDLineSeriesMap*> *AllSPDLineSeries = nullptr;
+
     QMenu *SPDSelectionMenu = nullptr;
     QList<QAction*> *SPDSelectionMenuActions = nullptr;
 

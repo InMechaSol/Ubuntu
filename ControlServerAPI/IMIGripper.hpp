@@ -54,6 +54,7 @@ class IMIGripper {
 public:
 
     // Main API Thread, started at Construction of IMIGripper Object
+    unsigned int getFWTimeStamp();
     bool newData();
     void clearNewDataFlag();
     bool isConnected();
@@ -278,4 +279,5 @@ public:
     static const char* getSPDLabelString(enum SPDSelector GripperVarSelectionIn);
     float getSPDFloatValue();
     enum SPDSelector getSPDSelector();
+    IMIGripper* getGripperAPIPtr();
 };
