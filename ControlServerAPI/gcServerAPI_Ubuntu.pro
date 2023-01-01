@@ -23,7 +23,7 @@ ccOSMainsDIR = $${PWD}
 
 ############################################################ LIBs
 # Select All Libs
-#CONFIG += ccNOosAllLibs
+CONFIG += ccNOosLibs_mcs
 # Select All Devices
 #CONFIG += ccNOosAllDevs
 #CONFIG += ccOSDevs_ft232h
@@ -34,7 +34,6 @@ INSTALLS += target
 headersDataFiles.path = $${PWD}/../GUIAPITests/gripperAPI
 headersDataFiles.files = $$ccOSMainsDIR/IMIGripper.hpp
 INSTALLS += headersDataFiles
-
 
 include($${gcControlClientDIR}/gcControlClient.pri)
 

@@ -39,12 +39,15 @@ MainWindow::MainWindow(QWidget *parent)
     duplicatChartAction->setEnabled(false);
     connect(duplicatChartAction, SIGNAL(triggered()), this, SLOT(LaunchNewWindow()));
 
-    pauseRunChartsAction = ui->menubar->addAction(" | Pause Chart");
+    pauseRunChartsAction = ui->menubar->addAction("   Pause Chart");
     connect(pauseRunChartsAction, SIGNAL(triggered()), this, SLOT(RunPausePlots()));
 
-    clearChartsAction = ui->menubar->addAction(" | Clear Chart");
+    clearChartsAction = ui->menubar->addAction("   Clear Chart");
     clearChartsAction->setEnabled(false);
     connect(clearChartsAction, SIGNAL(triggered()), this, SLOT(ClearPlots()));
+
+    showTreeViewAction = ui->menubar->addAction(" | Show Treeview");
+    connect(showTreeViewAction, SIGNAL(triggered()), this, SLOT(ShowTreeView()));
 
     // Statusbar Labels
     ConnectedLabel = new QLabel("Gripper: Not Connected");
@@ -79,21 +82,30 @@ MainWindow::~MainWindow()
 void MainWindow::Stop()
 {
     if(GripperAPI.isConnected())
+    {
+        GripperAPI.stop(0);
         statusBar()->showMessage(tr("Stopping..."));
+    }
     else
         statusBar()->showMessage(tr("Not Connected..."));
 }
 void MainWindow::Open()
 {
     if(GripperAPI.isConnected())
+    {
+        GripperAPI.open(0);
         statusBar()->showMessage(tr("Opening..."));
+    }
     else
         statusBar()->showMessage(tr("Not Connected..."));
 }
 void MainWindow::Close()
 {
     if(GripperAPI.isConnected())
+    {
+        GripperAPI.close(0,1);
         statusBar()->showMessage(tr("Closing..."));
+    }
     else
         statusBar()->showMessage(tr("Not Connected..."));
 }
@@ -122,6 +134,67 @@ void MainWindow::ClearPlots()
             AllSPDLineSeries->at(j)->clearSeriesData();
         }
     }
+}
+void MainWindow::ShowTreeView()
+{
+    treeWidget = new QTreeWidget();
+    treeWidget->setColumnCount(6);
+    QList<QTreeWidgetItem *> items;
+    QStringList* rowText = new QStringList();
+    rowText->append("Parameter");
+    rowText->append("Units");
+    rowText->append("Motor 0");
+    rowText->append("Motor 1");
+    rowText->append("Motor 2");
+    rowText->append("Motor 3");
+
+    QTreeWidgetItem* thisItem = new QTreeWidgetItem(*rowText);
+    treeWidget->setHeaderItem(thisItem);
+
+    rowText->clear();
+    rowText->append("Status");
+    rowText->append("");
+    rowText->append("??");
+    rowText->append("??");
+    rowText->append("??");
+    rowText->append("??");
+    thisItem = new QTreeWidgetItem(*rowText);
+    items.append(thisItem);
+
+    rowText->clear();
+    rowText->append("Temperature");
+    rowText->append("(degC)");
+    rowText->append("??");
+    rowText->append("??");
+    rowText->append("??");
+    rowText->append("??");
+    thisItem = new QTreeWidgetItem(*rowText);
+    items.append(thisItem);
+
+    rowText->clear();
+    rowText->append("Current");
+    rowText->append("(A)");
+    rowText->append("??");
+    rowText->append("??");
+    rowText->append("??");
+    rowText->append("??");
+    thisItem = new QTreeWidgetItem(*rowText);
+    items.append(thisItem);
+
+    rowText->clear();
+    rowText->append("PWM Cmd");
+    rowText->append("(-1 to 1)");
+    rowText->append("??");
+    rowText->append("??");
+    rowText->append("??");
+    rowText->append("??");
+    thisItem = new QTreeWidgetItem(*rowText);
+    items.append(thisItem);
+
+    treeWidget->insertTopLevelItems(0, items);
+    treeWidget->show();
+    treeWidget->setWindowTitle("Gripper Smart Motor Data");
+    showTreeViewAction->setEnabled(false);
 }
 void MainWindow::setNewMainChart()
 {
@@ -194,13 +267,18 @@ void MainWindow::LatchAndUpdate()
         if(GripperAPI.isConnected())
         {
             QString statLabel = " | Motor Status:";
-//            IMIGripper::joints_state s = GripperAPI.get_positions();
-//            for(int k = 0; k<4; k++)
-//                statLabel += " "+QString::number(s[k])+",";
+            for(int k = 0; k<4; k++)
+                statLabel += " "+QString::fromStdString(GripperAPI.MotorStatusShortString(k))+",";
             MotorsStatusLabel->setText(statLabel);
         }
         else
             MotorsStatusLabel->setText(" | Motor Status: ??, ??, ??, ??");
+
+        // Data Treeview
+        if(treeWidget!=nullptr)
+        {
+
+        }
 
         // update plot series        
         if(AllSPDLineSeries!=nullptr)
@@ -271,6 +349,8 @@ void MainWindow::closeEvent(QCloseEvent *event)
     {
         ChildWindows->at(i)->close();
     }
+    if(treeWidget!=nullptr)
+        treeWidget->close();
     QWidget::closeEvent(event);
 }
 void MainWindow::ToggleSPDSetting()

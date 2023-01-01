@@ -61,6 +61,8 @@ public:
     std::thread apiThread;
     IMIGripper();
 
+    const char* MotorStatusShortString(int motorIndex);
+
     enum EnumDirection{E_STILL, E_MOVING_UP, E_MOVING_DOWN};
     enum EnumMotorMode
     {
@@ -266,6 +268,18 @@ enum SPDSelector
     spdPos1,
     spdPos2,
     spdPos3,
+    spdVel0,
+    spdVel1,
+    spdVel2,
+    spdVel3,
+    spdPWM0,
+    spdPWM1,
+    spdPWM2,
+    spdPWM3,
+    spdCur0,
+    spdCur1,
+    spdCur2,
+    spdCur3,
     spdEND
 };
 

@@ -1,6 +1,7 @@
 // Include the Device Agnostic, Cross-Platform Application (DACPA) Library
 #include "osApp_Serialization.hpp"
 // Include the API Modules from the DACPA Library
+#include "UIServerClass.hpp"
 #include "FWControlClientClass.hpp"
 // Include additional application files as needed
 #include <iostream>  // for cin/cout
@@ -32,6 +33,11 @@ public:
     gcControl_Class gcControl_compMod;
     struct gcControlClientStruct gcControl_data;
 
+    // UI api Compute Module
+    UI_ServerClass UIServer_exeThread;
+    struct UIServerStruct UIServer_data;
+    consoleMenuClass Console1MenuInst;
+
     // FW Control Client api Compute Module
     FWCtrlClient_Class FWCtrlClient_exeThread;
     struct FWCtrlClientStruct FWCtrlClient_data;
@@ -56,9 +62,13 @@ public:
         // link the ccACU compute module to its ccACU data instance
         // - and all of its exeThread Modules (API and Device Modules)
         gcControl_compMod(  &gcControl_data,
+                            &UIServer_exeThread,
                             &FWCtrlClient_exeThread
                             ),
         // link the api compute modules to the compute module
+        UIServer_exeThread(&UIServer_data, &gcControl_compMod),
+        // construct the console menu objects - link with ConsoleMenu from gripperFW layer - reuse
+        Console1MenuInst(&((ccGripperStruct*)gcControl_compMod.getModuleDataPtr())->ConsoleMenu, &UIServer_exeThread.theMainMenuNode),
         FWCtrlClient_exeThread(&FWCtrlClient_data, &gcControl_compMod),
         // construct the packets api object - link with PacketsAPI from gripperFW layer - reuse
         PacketsInst(&((ccGripperStruct*)gcControl_compMod.getModuleDataPtr())->PacketsAPI),
@@ -72,6 +82,8 @@ public:
         systickListHead(nullptr, nullptr),
         exceptionListHead(&gcControl_compMod, nullptr)
     {
+        // Link UI Server and Console Menu Objects
+        UIServer_data.uiPtrArray[0] = &Console1MenuInst;
 
         // Prevent execution of api modules at ccNOos level - UI Server will handle for the ccOS application
         ((ccGripperStruct*)gcControl_compMod.getModuleDataPtr())->execAPIsMainLoop = ui8FALSE;
@@ -97,8 +109,10 @@ public:
         StdConfStruct.devptr = &StdIODevice;
         //stdInThread = std::thread(readStdIn, &StdConfStruct.devptr->inbuff.charbuff[0]);
 
+        theExecutionSystemPtr->exeThreadModuleList.emplace_back(&UIServer_exeThread);
         theExecutionSystemPtr->exeThreadModuleList.emplace_back(&FWCtrlClient_exeThread);
         // Start the exe_thread modules
+        theExecutionSystemPtr->exeThreadList.emplace_back(new std::thread(&UI_ServerClass::ThreadExecute, std::ref(UIServer_exeThread)));
         theExecutionSystemPtr->exeThreadList.emplace_back(new std::thread(&FWCtrlClient_Class::ThreadExecute, std::ref(FWCtrlClient_exeThread)));
     }
 
@@ -215,7 +229,18 @@ void IMIGripper::clearNewDataFlag()
 
 
 #define FWDataPtr theApplicationExample.gcControl_compMod.getGripperFWDataPtr()
-
+const char* IMIGripper::MotorStatusShortString(int motorIndex)
+{
+    if(FWDataPtr->SmartMotors[motorIndex].Connected)
+    {
+        if(FWDataPtr->SmartMotors[motorIndex].StatusOK)
+            return "OK";
+        else
+            return "!!";
+    }
+    else
+        return "NC";
+}
 unsigned int IMIGripper::getFWTimeStamp()
 {
     return FWDataPtr->TimeStamp;
@@ -267,6 +292,18 @@ const char* GripperSPD::getSPDLabelString(enum SPDSelector GripperVarSelectionIn
     case spdPos1: return "Position1";
     case spdPos2: return "Position2";
     case spdPos3: return "Position3";
+    case spdVel0: return "Velocity0";
+    case spdVel1: return "Velocity1";
+    case spdVel2: return "Velocity2";
+    case spdVel3: return "Velocity3";
+    case spdPWM0: return "PWM0";
+    case spdPWM1: return "PWM1";
+    case spdPWM2: return "PWM2";
+    case spdPWM3: return "PWM3";
+    case spdCur0: return "Current0";
+    case spdCur1: return "Current1";
+    case spdCur2: return "Current2";
+    case spdCur3: return "Current3";
 
     default: return "Invalid!";
     }
@@ -279,6 +316,18 @@ float GripperSPD::getSPDFloatValue()
     case spdPos1: return FWDataPtr->SmartMotors[1].RotorPositionFbk;
     case spdPos2: return FWDataPtr->SmartMotors[2].RotorPositionFbk;
     case spdPos3: return FWDataPtr->SmartMotors[3].RotorPositionFbk;
+    case spdVel0: return FWDataPtr->SmartMotors[0].RotorVelocityFbk;
+    case spdVel1: return FWDataPtr->SmartMotors[1].RotorVelocityFbk;
+    case spdVel2: return FWDataPtr->SmartMotors[2].RotorVelocityFbk;
+    case spdVel3: return FWDataPtr->SmartMotors[3].RotorVelocityFbk;
+    case spdPWM0: return FWDataPtr->SmartMotors[0].MotorPWMCmd;
+    case spdPWM1: return FWDataPtr->SmartMotors[1].MotorPWMCmd;
+    case spdPWM2: return FWDataPtr->SmartMotors[2].MotorPWMCmd;
+    case spdPWM3: return FWDataPtr->SmartMotors[3].MotorPWMCmd;
+    case spdCur0: return FWDataPtr->SmartMotors[0].MotorCurrentFbk;
+    case spdCur1: return FWDataPtr->SmartMotors[1].MotorCurrentFbk;
+    case spdCur2: return FWDataPtr->SmartMotors[2].MotorCurrentFbk;
+    case spdCur3: return FWDataPtr->SmartMotors[3].MotorCurrentFbk;
 
     default: return 0.0;
     }

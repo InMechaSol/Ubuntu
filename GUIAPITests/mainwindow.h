@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include <QLabel>
 #include <QList>
+#include <QTreeWidget>
 #include <QChartView>
 #include <QLineSeries>
 #include <QPointF>
@@ -67,6 +68,7 @@ private slots:
     void LatchAndUpdate();
     void RunPausePlots();
     void ClearPlots();
+    void ShowTreeView();
 
 private:
     bool runPlots = true;
@@ -77,6 +79,7 @@ private:
     void scalePlots(QtCharts::QChart* chartPtr);
     void setNewMainChart();
     Ui::MainWindow *ui = nullptr;
+    QTreeWidget *treeWidget = nullptr;
     QtCharts::QChartView* mainChart = nullptr;
     QList<QtCharts::QChartView*> *ChildWindows = nullptr;
     QList<SPDLineSeriesMap*> *AllSPDLineSeries = nullptr;
@@ -90,6 +93,7 @@ private:
     QAction *duplicatChartAction = nullptr;
     QAction *pauseRunChartsAction = nullptr;
     QAction *clearChartsAction = nullptr;
+    QAction *showTreeViewAction = nullptr;
 
     QLabel *ConnectedLabel = nullptr;
     QLabel *PositionsLabel = nullptr;
