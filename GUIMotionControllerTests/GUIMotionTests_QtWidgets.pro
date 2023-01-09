@@ -3,11 +3,11 @@ QT       += core gui charts
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++11
-
+DEFINES += PLATFORM_ccOS
 QMAKE_LFLAGS += --verbose -lrt -lpthread
-INCLUDEPATH += $${PWD}/gripperAPI
-DEPENDPATH += $${PWD}/gripperAPI
-LIBS += -L$${PWD}/gripperAPI -lGripperAPI
+INCLUDEPATH += \
+    $${PWD}/../../ccNOos/ccLibs/mcs \
+    $${PWD}/../../ccNOos/executionSystem
 
 
 # You can make your code fail to compile if it uses deprecated APIs.
@@ -16,11 +16,17 @@ LIBS += -L$${PWD}/gripperAPI -lGripperAPI
 
 SOURCES += \
     main.cpp \
-    mainwindow.cpp
+    mainwindow.cpp \
+    $${PWD}/../../ccNOos/ccLibs/mcs/motionControl.cpp \
+    qccos.cpp
 
 HEADERS += \
     mainwindow.h \
-    $${PWD}/gripperAPI/IMIGripper.hpp
+    $${PWD}/gripperAPI/IMIGripper.hpp \
+    $${PWD}/../../ccNOos/ccLibs/mcs/motionControl.c \
+    $${PWD}/../../ccNOos/ccLibs/mcs/motionControl.h \
+    $${PWD}/../../ccNOos/executionSystem/version_config.h \
+    qccos.h
 
 FORMS += \
     mainwindow.ui
