@@ -3,13 +3,10 @@
 
 #include <QMainWindow>
 #include <QLabel>
-#include <QList>
-#include <QTreeWidget>
-#include <QChartView>
-#include <QLineSeries>
-#include <QPointF>
+#include <QTime>
 #include <QTimer>
-#include <limits>
+
+#include "qccos.h"
 #include "IMIGripper.hpp"
 
 QT_BEGIN_NAMESPACE
