@@ -3,33 +3,7 @@
 
 #include <QMainWindow>
 
-#include "motionControl.h"
 #include "qccos.h"
-
-// Motion Control, Smart Motor, Axis - Line Series Mapping via SPD
-// Makes each Axis SPD plotable
-class AxisLineSeriesMap
-{
-private:
-    AxisSPD spd;
-    SPDLineSeries spdLine;
-
-public:
-    AxisLineSeriesMap(enum mcsSPDSelector AxisVarSelectionIn, SmartMotorDevice* smDevPtrIn, qSPDChart* spdChartPtr);//, int* plotWindowStartIn, int* plotWindowSamplesIn);
-    SPDLineSeries* getLine();
-};
-
-// inherit from base class
-class AxisSPDTreeWidgetItem:public SPDTreeWidgetItem
-{
-private:
-    AxisSPD spd;
-public:
-    AxisSPDTreeWidgetItem(enum mcsSPDSelector AxisVarSelectionIn, SmartMotorDevice* smDevPtrIn);
-    enum mcsSPDSelector GetAxisVarSelectionIn();
-};
-
-
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }

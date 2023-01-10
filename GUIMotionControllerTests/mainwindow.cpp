@@ -8,38 +8,6 @@
 #include <QLineEdit>
 
 
-/////////////////////////////////////////////////////
-/// SmartMotor, Axis SPD LineSeries
-//
-AxisLineSeriesMap::AxisLineSeriesMap(enum mcsSPDSelector AxisVarSelectionIn, SmartMotorDevice* smDevPtrIn, qSPDChart* spdChartPtr):
-    spd(AxisVarSelectionIn,smDevPtrIn),
-    spdLine(&spd,spdChartPtr)
-{
-
-    spdLine.setName(getSPDLabelString(AxisVarSelectionIn, smDevPtrIn->getSPDArray()));
-    spdChartPtr->addSeries(&spdLine);
-    spdLine.attachAxis(spdChartPtr->axes().at(0));
-    spdLine.attachAxis(spdChartPtr->axes().at(1));
-    spdLine.setUseOpenGL(true);
-}
-SPDLineSeries* AxisLineSeriesMap::getLine()
-{
-    return &spdLine;
-}
-
-/////////////////////////////////////////////////////
-/// SmartMotor, Axis SPD Tree Widget Item
-//
-AxisSPDTreeWidgetItem::AxisSPDTreeWidgetItem(enum mcsSPDSelector AxisVarSelectionIn, SmartMotorDevice* smDevPtrIn):
-    SPDTreeWidgetItem(&spd, QStringList({getSPDLabelString(AxisVarSelectionIn,smDevPtrIn->getSPDArray()),"",getSPDUnitsString(AxisVarSelectionIn,smDevPtrIn->getSPDArray())})),
-    spd(AxisVarSelectionIn, smDevPtrIn)
-{
-
-}
-enum mcsSPDSelector AxisSPDTreeWidgetItem::GetAxisVarSelectionIn()
-{
-    return (enum mcsSPDSelector)GetVarSelectionIn();
-}
 
 ///
 /// \brief MainWindow::MainWindow
