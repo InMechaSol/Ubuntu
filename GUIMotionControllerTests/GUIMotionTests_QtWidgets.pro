@@ -4,32 +4,62 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++11
 DEFINES += PLATFORM_ccOS
-QMAKE_LFLAGS += --verbose -lrt -lpthread
-INCLUDEPATH += \
-    $${PWD}/../../ccNOos/ccLibs/mcs \
-    $${PWD}/../../ccNOos/executionSystem
+QMAKE_LFLAGS += -lrt -lpthread
+QMAKE_EXT_CPP = .cpp
+QMAKE_EXT_H = .h .hpp .c
 
+ccNOosDIR = $$absolute_path($${PWD}/../../ccNOos/)
+ccOSDIR = $$absolute_path($${PWD}/../../ccOS/)
+ccNOosPlatformDIR = $${ccNOosDIR}/tests/testPlatforms
+ccOSMainsDIR = $${PWD}
+QccOSDIR = $$absolute_path($${PWD}/../../Qt/)
 
-# You can make your code fail to compile if it uses deprecated APIs.
-# In order to do so, uncomment the following line.
-#DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
+############################################################ LIBs
+# Select All Libs
+CONFIG += ccNOosAllLibs
+# Select All Devices
+CONFIG += ccNOosAllDevs
 
-SOURCES += \
-    main.cpp \
-    mainwindow.cpp \
-    $${PWD}/../../ccNOos/ccLibs/mcs/motionControl.cpp \
-    qccos.cpp
+include($${ccOSDIR}/ccOS.pri)
 
-HEADERS += \
-    mainwindow.h \
-    $${PWD}/gripperAPI/IMIGripper.hpp \
-    $${PWD}/../../ccNOos/ccLibs/mcs/motionControl.c \
-    $${PWD}/../../ccNOos/ccLibs/mcs/motionControl.h \
-    $${PWD}/../../ccNOos/executionSystem/version_config.h \
-    qccos.h
+INCLUDEPATH += $$ccOSMainsDIR
+INCLUDEPATH += $$ccNOosPlatformDIR
+INCLUDEPATH += $$QccOSDIR
 
-FORMS += \
-    mainwindow.ui
+HEADERS += $$ccNOosPlatformDIR/Platform_ccOS.hpp
+HEADERS += $$ccOSMainsDIR/mainwindow.h
+HEADERS += $$QccOSDIR/qccos.h
+
+SOURCES += $$ccOSMainsDIR/main.cpp
+SOURCES += $$ccOSMainsDIR/mainwindow.cpp
+SOURCES += $$QccOSDIR/qccos.cpp
+
+FORMS += mainwindow.ui
+
+message("Includes:")
+for(msg, INCLUDEPATH) {
+    message($$msg)
+}
+message("Headers:")
+for(msg, HEADERS) {
+    message($$msg)
+}
+message("Sources:")
+for(msg, SOURCES) {
+    message($$msg)
+}
+message("Objects:")
+for(msg, OBJECTS) {
+    message($$msg)
+}
+message("Source Extensions:")
+for(msg, QMAKE_EXT_CPP) {
+    message($$msg)
+}
+message("Header Extensions:")
+for(msg, QMAKE_EXT_H) {
+    message($$msg)
+}
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
