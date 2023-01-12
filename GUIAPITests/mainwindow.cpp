@@ -1,8 +1,11 @@
+//#include "Platform_ccOS.hpp"
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include <QMenu>
 #include <QAbstractAxis>
 #include <QValueAxis>
+#include <QWidgetAction>
+#include <QLineEdit>
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -24,15 +27,33 @@ MainWindow::MainWindow(QWidget *parent)
     closeAction = ui->menubar->addAction("Close");
     connect(closeAction, SIGNAL(triggered()), this, SLOT(Close()));
 
-    SPDSelectionMenu = ui->menubar->addMenu(" | Configure Plot");
+    SPDSelectionMenu0 = ui->menubar->addMenu(" | M0");
+    SPDSelectionMenu1 = ui->menubar->addMenu(" | M1");
+    SPDSelectionMenu2 = ui->menubar->addMenu(" | M2");
+    SPDSelectionMenu3 = ui->menubar->addMenu(" | M3");
 
-    SPDSelectionMenuActions = new QList<QAction*>();
+    SPDSelectionMenuActions0 = new QList<QAction*>();
+    SPDSelectionMenuActions1 = new QList<QAction*>();
+    SPDSelectionMenuActions2 = new QList<QAction*>();
+    SPDSelectionMenuActions3 = new QList<QAction*>();
     int i;
-    for(i = spdNone+1; i<spdEND; i++)
+    for(i = mcsNone+1; i<mcsEND; i++)
     {
-        SPDSelectionMenuActions->append(SPDSelectionMenu->addAction(GripperSPD::getSPDLabelString((enum SPDSelector)i)));
-        SPDSelectionMenuActions->at(i-(spdNone+1))->setCheckable(true);
-        connect(SPDSelectionMenuActions->at(i-(spdNone+1)), SIGNAL(triggered()), this, SLOT(ToggleSPDSetting()));
+        SPDSelectionMenuActions0->append(SPDSelectionMenu0->addAction(getSPDLabelString((enum mcsSPDSelector)i, GripperAPI.smDevPtrs[0]->getSPDArray())));
+        SPDSelectionMenuActions0->at(i-(mcsNone+1))->setCheckable(true);
+        connect(SPDSelectionMenuActions0->at(i-(mcsNone+1)), SIGNAL(triggered()), this, SLOT(ToggleSPDSetting()));
+
+        SPDSelectionMenuActions1->append(SPDSelectionMenu1->addAction(getSPDLabelString((enum mcsSPDSelector)i, GripperAPI.smDevPtrs[1]->getSPDArray())));
+        SPDSelectionMenuActions1->at(i-(mcsNone+1))->setCheckable(true);
+        connect(SPDSelectionMenuActions1->at(i-(mcsNone+1)), SIGNAL(triggered()), this, SLOT(ToggleSPDSetting()));
+
+        SPDSelectionMenuActions2->append(SPDSelectionMenu2->addAction(getSPDLabelString((enum mcsSPDSelector)i, GripperAPI.smDevPtrs[2]->getSPDArray())));
+        SPDSelectionMenuActions2->at(i-(mcsNone+1))->setCheckable(true);
+        connect(SPDSelectionMenuActions2->at(i-(mcsNone+1)), SIGNAL(triggered()), this, SLOT(ToggleSPDSetting()));
+
+        SPDSelectionMenuActions3->append(SPDSelectionMenu3->addAction(getSPDLabelString((enum mcsSPDSelector)i, GripperAPI.smDevPtrs[3]->getSPDArray())));
+        SPDSelectionMenuActions3->at(i-(mcsNone+1))->setCheckable(true);
+        connect(SPDSelectionMenuActions3->at(i-(mcsNone+1)), SIGNAL(triggered()), this, SLOT(ToggleSPDSetting()));
     }
 
     duplicatChartAction = ui->menubar->addAction(" | Launch New Chart");
@@ -61,16 +82,19 @@ MainWindow::MainWindow(QWidget *parent)
 
 
     // The Main ChartView
-    AllSPDLineSeries = new QList<SPDLineSeriesMap*>();
-    mainChart = new QtCharts::QChartView();
+    mainChartView = new QtCharts::QChartView();
     setNewMainChart();
 
-    this->setCentralWidget(mainChart);
+    plotDuration = 0.0;
+    plotBegin = 0.0;
+
+    this->setCentralWidget(mainChartView);
 
     // The latch / update timer
     LatchTimer = new QTimer(this);
     connect(LatchTimer, SIGNAL(timeout()), this, SLOT(LatchAndUpdate()) );
-    LatchTimer->start(1);
+    LatchTimer->start(latchNUpdateMS);
+    //RunPausePlots();
 
 }
 
@@ -127,126 +151,291 @@ void MainWindow::RunPausePlots()
 
 void MainWindow::ClearPlots()
 {
-    if(AllSPDLineSeries!=nullptr)
+    ((qSPDChart*)mainChartView->chart())->reset();
+    if(childChartViews!=nullptr)
     {
-        for(int j = 0; j < AllSPDLineSeries->count(); j++)
+        for(int i = 0; i<childChartViews->count(); i++)
+            ((qSPDChart*)childChartViews->at(i)->chart())->reset();
+    }
+}
+static bool fromEdit = false;
+void MainWindow::UpdateTreeView()
+{
+    if(!fromEdit)
+    {
+        for(int iM = 0; iM < 4; iM++)
         {
-            AllSPDLineSeries->at(j)->clearSeriesData();
+            // Axis - Planning
+            for(int i = mcsPlndT; i <= mcsDesiredControlMode; i++)
+            {
+                treeWidget->topLevelItem(iM)->child(0)->child(i-mcsPlndT)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,GripperAPI.smDevPtrs[iM]->getSPDArray())));
+            }
+            // Axis - Position
+            for(int i = mcsPosCMD; i <= mcsPosNLim; i++)
+            {
+                treeWidget->topLevelItem(iM)->child(1)->child(i-mcsPosCMD)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,GripperAPI.smDevPtrs[iM]->getSPDArray())));
+            }
+            // Axis - Position Control
+            for(int i = mcsPosCtrldT; i <= mcsPosCtrlcmdVel; i++)
+            {
+                treeWidget->topLevelItem(iM)->child(2)->child(i-mcsPosCtrldT)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,GripperAPI.smDevPtrs[iM]->getSPDArray())));
+            }
+            // Axis - Velocity
+            for(int i = mcsVelCMD; i <= mcsVelNLim; i++)
+            {
+                treeWidget->topLevelItem(iM)->child(3)->child(i-mcsVelCMD)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,GripperAPI.smDevPtrs[iM]->getSPDArray())));
+            }
+            // Axis - Velocity Control
+            for(int i = mcsVelCtrldT; i <= mcsVelCtrlSaturated; i++)
+            {
+                treeWidget->topLevelItem(iM)->child(4)->child(i-mcsVelCtrldT)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,GripperAPI.smDevPtrs[iM]->getSPDArray())));
+            }
+            // Axis - Current
+            for(int i = mcsCurCMD; i <= mcsCurNLim; i++)
+            {
+                treeWidget->topLevelItem(iM)->child(5)->child(i-mcsCurCMD)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,GripperAPI.smDevPtrs[iM]->getSPDArray())));
+            }
+            // Axis - Motor Model
+            for(int i = mcsMotConTorque; i <= mcsMotEff; i++)
+            {
+                treeWidget->topLevelItem(iM)->child(6)->child(i-mcsMotConTorque)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,GripperAPI.smDevPtrs[iM]->getSPDArray())));
+            }
+            // Axis - Current Loop
+            for(int i = mcsCurCtrldT; i <= mcsCurCtrlSaturated; i++)
+            {
+                treeWidget->topLevelItem(iM)->child(7)->child(i-mcsCurCtrldT)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,GripperAPI.smDevPtrs[iM]->getSPDArray())));
+            }
+            // Axis - Torque, Voltage, PWM
+            for(int i = mcsPWMCMD; i <= mcsPWMCMD; i++)
+            {
+                treeWidget->topLevelItem(iM)->child(8)->child(i-mcsPWMCMD)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,GripperAPI.smDevPtrs[iM]->getSPDArray())));
+            }
+        }
+        // Chart - Main Window
+        for(int i = guiPltWndwStart; i <= guiPltWindowRt; i++)
+        {
+            treeWidget->topLevelItem(4)->child(0)->child(i-guiPltWndwStart)->setText(1, QString::number(getSPDFloatValue((enum guiSPDSelector)i, ((qSPDChart*)mainChartView->chart())->getSPDArray())));
+        }
+        // Chart - Line Series 0
+        for(int i = guiChrt0MaxX; i <= guiChrt0DurPerSamp; i++)
+        {
+            treeWidget->topLevelItem(4)->child(1)->child(i-guiChrt0MaxX)->setText(1, QString::number(getSPDFloatValue((enum guiSPDSelector)i, ((qSPDChart*)mainChartView->chart())->getSPDArray())));
         }
     }
+
 }
 void MainWindow::ShowTreeView()
 {
     treeWidget = new QTreeWidget();
-    treeWidget->setColumnCount(6);
+    treeWidget->setColumnCount(3);
     QList<QTreeWidgetItem *> items;
-    QStringList* rowText = new QStringList();
-    rowText->append("Parameter");
-    rowText->append("Units");
-    rowText->append("Motor 0");
-    rowText->append("Motor 1");
-    rowText->append("Motor 2");
-    rowText->append("Motor 3");
 
-    QTreeWidgetItem* thisItem = new QTreeWidgetItem(*rowText);
-    treeWidget->setHeaderItem(thisItem);
+    treeWidget->setHeaderItem(new QTreeWidgetItem(QStringList({"Parameter","Value","Units"})));
 
-    rowText->clear();
-    rowText->append("Status");
-    rowText->append("");
-    rowText->append("??");
-    rowText->append("??");
-    rowText->append("??");
-    rowText->append("??");
-    thisItem = new QTreeWidgetItem(*rowText);
-    items.append(thisItem);
+    for(int iM = 0; iM < 4; iM++)
+    {
+        // Top Level Axis Structure
+        items.append(new QTreeWidgetItem(QStringList({"Finger SmartMotor"+QString::number(iM), "", ""})));
 
-    rowText->clear();
-    rowText->append("Temperature");
-    rowText->append("(degC)");
-    rowText->append("??");
-    rowText->append("??");
-    rowText->append("??");
-    rowText->append("??");
-    thisItem = new QTreeWidgetItem(*rowText);
-    items.append(thisItem);
+        // Axis - Planning
+        items.at(iM)->addChild(new QTreeWidgetItem(QStringList({"Planning Loop", "", ""})));
+        for(int i = mcsPlndT; i <= mcsDesiredControlMode; i++)
+            items.at(iM)->child(0)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,GripperAPI.smDevPtrs[iM]));
 
-    rowText->clear();
-    rowText->append("Current");
-    rowText->append("(A)");
-    rowText->append("??");
-    rowText->append("??");
-    rowText->append("??");
-    rowText->append("??");
-    thisItem = new QTreeWidgetItem(*rowText);
-    items.append(thisItem);
+        // Axis - Position
+        items.at(iM)->addChild(new QTreeWidgetItem(QStringList({"Position", "", ""})));
+        for(int i = mcsPosCMD; i <= mcsPosNLim; i++)
+            items.at(iM)->child(1)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,GripperAPI.smDevPtrs[iM]));
 
-    rowText->clear();
-    rowText->append("PWM Cmd");
-    rowText->append("(-1 to 1)");
-    rowText->append("??");
-    rowText->append("??");
-    rowText->append("??");
-    rowText->append("??");
-    thisItem = new QTreeWidgetItem(*rowText);
-    items.append(thisItem);
+        // Axis - Position Control
+        items.at(iM)->addChild(new QTreeWidgetItem(QStringList({"Position Loop", "", ""})));
+        for(int i = mcsPosCtrldT; i <= mcsPosCtrlcmdVel; i++)
+            items.at(iM)->child(2)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,GripperAPI.smDevPtrs[iM]));
 
+        // Axis - Velocity
+        items.at(iM)->addChild(new QTreeWidgetItem(QStringList({"Velocity", "", ""})));
+        for(int i = mcsVelCMD; i <= mcsVelNLim; i++)
+            items.at(iM)->child(3)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,GripperAPI.smDevPtrs[iM]));
+
+        // Axis - Velocity Control
+        items.at(iM)->addChild(new QTreeWidgetItem(QStringList({"Velocity Loop", "", ""})));
+        for(int i = mcsVelCtrldT; i <= mcsVelCtrlSaturated; i++)
+            items.at(iM)->child(4)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,GripperAPI.smDevPtrs[iM]));
+
+        // Axis - Current
+        items.at(iM)->addChild(new QTreeWidgetItem(QStringList({"Current", "", ""})));
+        for(int i = mcsCurCMD; i <= mcsCurNLim; i++)
+            items.at(iM)->child(5)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,GripperAPI.smDevPtrs[iM]));
+
+        // Axis - Motor Model
+        items.at(iM)->addChild(new QTreeWidgetItem(QStringList({"Motor Model", "", ""})));
+        for(int i = mcsMotConTorque; i <= mcsMotEff; i++)
+            items.at(iM)->child(6)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,GripperAPI.smDevPtrs[iM]));
+
+        // Axis - Current Loop
+        items.at(iM)->addChild(new QTreeWidgetItem(QStringList({"Current Loop", "", ""})));
+        for(int i = mcsCurCtrldT; i <= mcsCurCtrlSaturated; i++)
+            items.at(iM)->child(7)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,GripperAPI.smDevPtrs[iM]));
+
+        // Axis - Torque, Voltage, PWM
+        items.at(iM)->addChild(new QTreeWidgetItem(QStringList({"Torque, Volts, PWM", "", ""})));
+        for(int i = mcsPWMCMD; i <= mcsPWMCMD; i++)
+            items.at(iM)->child(8)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,GripperAPI.smDevPtrs[iM]));
+
+    }
+
+
+    // Top Level Charts Structure
+    items.append(new QTreeWidgetItem(QStringList({"Charts", "", ""})));
+
+    // Charts - mainwindow
+    items.at(4)->addChild(new QTreeWidgetItem(QStringList({"RT Window", "", ""})));
+    for(int i = guiPltWndwStart; i <= guiPltWindowRt; i++)
+        items.at(4)->child(0)->addChild(new GUISPDTreeWidgetItem((enum guiSPDSelector)i, ((qSPDChart*)mainChartView->chart())));
+
+    // Charts - first line series
+    items.at(4)->addChild(new QTreeWidgetItem(QStringList({"Line Series 0", "", ""})));
+    for(int i = guiChrt0MaxX; i <= guiChrt0DurPerSamp; i++)
+        items.at(4)->child(1)->addChild(new GUISPDTreeWidgetItem((enum guiSPDSelector)i, ((qSPDChart*)mainChartView->chart())));
+
+    // Now use the list of nodes to populate the Top Level TreeView
     treeWidget->insertTopLevelItems(0, items);
+    //treeWidget->setEditTriggers(QAbstractItemView::DoubleClicked);
     treeWidget->show();
-    treeWidget->setWindowTitle("Gripper Smart Motor Data");
-    showTreeViewAction->setEnabled(false);
+    treeWidget->setWindowTitle("Gripper Controller Data");
+    showTreeViewAction->setEnabled(true);
+    //connect(treeWidget,SIGNAL(),this,SLOT(spdTableChange(QTreeWidgetItem*,int)));
+    connect(treeWidget,SIGNAL(itemChanged(QTreeWidgetItem*,int)),this,SLOT(spdTableChange(QTreeWidgetItem*,int)));
+    connect(treeWidget,SIGNAL(itemDoubleClicked(QTreeWidgetItem*,int)),this,SLOT(spdTableEditItem(QTreeWidgetItem*,int)));
+}
+
+
+void MainWindow::spdTableChange(QTreeWidgetItem* wd,int i)
+{
+    int minIndex = 0;
+    SPDStruct* arPtr = nullptr;
+    if(i==1 && fromEdit)
+    {
+        if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==GripperAPI.smDevPtrs[0])
+        {
+            minIndex = mcsNone;
+            arPtr = GripperAPI.smDevPtrs[0]->getSPDArray();
+        }
+        else if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==GripperAPI.smDevPtrs[1])
+        {
+            minIndex = mcsNone;
+            arPtr = GripperAPI.smDevPtrs[1]->getSPDArray();
+        }
+        else if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==GripperAPI.smDevPtrs[2])
+        {
+            minIndex = mcsNone;
+            arPtr = GripperAPI.smDevPtrs[2]->getSPDArray();
+        }
+        else if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==GripperAPI.smDevPtrs[3])
+        {
+            minIndex = mcsNone;
+            arPtr = GripperAPI.smDevPtrs[3]->getSPDArray();
+        }
+        else if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==((qSPDChart*)mainChartView->chart()))
+        {
+            minIndex = guiNone;
+            arPtr = ((qSPDChart*)mainChartView->chart())->getSPDArray();
+        }
+
+        if(arPtr!=nullptr&&((SPDTreeWidgetItem*)wd)->GetVarSelectionIn()>minIndex)
+        {
+            if(!arPtr[((SPDTreeWidgetItem*)wd)->GetVarSelectionIn()].readonly)
+            {
+                // NEW SPD set from String Function - Use it HERE!
+                //setSPDFromString(wd->text(i).toStdString().c_str(), ((SPDTreeWidgetItem*)wd)->GetVarSelectionIn(), arPtr);
+
+                // And set in packet function...for use on GUI API Tests for Gripper
+                bool goodParse;
+                float tempFloat = wd->text(i).toFloat(&goodParse);
+                if(goodParse)
+                    setSPDFloatValue(tempFloat, ((SPDTreeWidgetItem*)wd)->GetVarSelectionIn(), arPtr);
+            }
+        }
+        wd->setFlags(wd->flags() & ~Qt::ItemIsEditable);
+        fromEdit=false;
+    }
+
+}
+
+void MainWindow::spdTableEditItem(QTreeWidgetItem* wd,int i)
+{
+    int minIndex = 0;
+    SPDStruct* arPtr = nullptr;
+    if(i==1)
+    {
+        if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==GripperAPI.smDevPtrs[0])
+        {
+            minIndex = mcsNone;
+            arPtr = GripperAPI.smDevPtrs[0]->getSPDArray();
+        }
+        else if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==GripperAPI.smDevPtrs[1])
+        {
+            minIndex = mcsNone;
+            arPtr = GripperAPI.smDevPtrs[1]->getSPDArray();
+        }
+        else if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==GripperAPI.smDevPtrs[2])
+        {
+            minIndex = mcsNone;
+            arPtr = GripperAPI.smDevPtrs[2]->getSPDArray();
+        }
+        else if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==GripperAPI.smDevPtrs[3])
+        {
+            minIndex = mcsNone;
+            arPtr = GripperAPI.smDevPtrs[3]->getSPDArray();
+        }
+        else if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==((qSPDChart*)mainChartView->chart()))
+        {
+            minIndex = guiNone;
+            arPtr = ((qSPDChart*)mainChartView->chart())->getSPDArray();
+        }
+        if(arPtr!=nullptr&&((SPDTreeWidgetItem*)wd)->GetVarSelectionIn()>minIndex)
+        {
+            if(!arPtr[((SPDTreeWidgetItem*)wd)->GetVarSelectionIn()].readonly)
+            {
+                wd->setFlags(wd->flags() | Qt::ItemIsEditable);
+                wd->treeWidget()->editItem(wd, i);
+                fromEdit=true;
+            }
+        }
+    }
 }
 void MainWindow::setNewMainChart()
 {
-    mainChart->setChart(new QtCharts::QChart());
-    mainChart->chart()->legend()->setAlignment(Qt::AlignBottom);
-    mainChart->chart()->legend()->setVisible(true);
+    mainChartView->setChart(new qSPDChart());
+    mainChartView->chart()->legend()->setAlignment(Qt::AlignBottom);
+    mainChartView->chart()->legend()->setVisible(true);
     //mainChart->chart()->setTitle("My First Plot");
 
     QtCharts::QValueAxis *axisX = new QtCharts::QValueAxis();
     //axisX->setTickCount(10);
-    axisX->setTitleText("FW Time");
-    mainChart->chart()->addAxis(axisX, Qt::AlignBottom);
+    axisX->setTitleText("Time");
+    mainChartView->chart()->addAxis(axisX, Qt::AlignBottom);
 
     QtCharts::QValueAxis *axisY = new QtCharts::QValueAxis();
     axisY->setLabelFormat("%f");
     //axisY->setTitleText("Sunspots count");
-    mainChart->chart()->addAxis(axisY, Qt::AlignLeft);
+    mainChartView->chart()->addAxis(axisY, Qt::AlignLeft);
 }
 
-void MainWindow::scalePlots(QtCharts::QChart* chartPtr)
-{
-    struct maxMinstruct limits = {std::numeric_limits<float>::max(), -std::numeric_limits<float>::max(), std::numeric_limits<float>::max(),-std::numeric_limits<float>::max()};
-    // determine max min from all spds
-    if(AllSPDLineSeries!=nullptr)
-    {
-        for(int j = 0; j < AllSPDLineSeries->count(); j++)
-        {
-            if(chartPtr==AllSPDLineSeries->at(j)->getSPDChartPtr())
-            {
-                if(AllSPDLineSeries->at(j)->getMinTime()<limits.minX)
-                    limits.minX=AllSPDLineSeries->at(j)->getMinTime();
-                if(AllSPDLineSeries->at(j)->getMaxTime()>limits.maxX)
-                    limits.maxX=AllSPDLineSeries->at(j)->getMaxTime();
 
-                if(AllSPDLineSeries->at(j)->getMinY()<limits.minY)
-                    limits.minY=AllSPDLineSeries->at(j)->getMinY();
-                if(AllSPDLineSeries->at(j)->getMaxY()>limits.maxY)
-                    limits.maxY=AllSPDLineSeries->at(j)->getMaxY();
-            }
-        }
-    }
 
-    // apply scaling to plot axes
-    QList<QtCharts::QAbstractAxis*> chartAxes = chartPtr->axes();
-    chartAxes.at(0)->setRange(limits.minX, limits.maxX);
-    chartAxes.at(1)->setRange(limits.minY, limits.maxY);
-}
 void MainWindow::LatchAndUpdate()
 {
-    static unsigned int cycleCounter = 0;
-    if(cycleCounter%100==0)// every hundredth cycle
+    LatchTimer->stop();
+    systemModelTimeDelta = 0.001*(QTime::currentTime().msecsSinceStartOfDay()-systemmodeltime);
+    systemmodeltime = QTime::currentTime().msecsSinceStartOfDay();
+
+    // update GUI for active user view
+    if((QTime::currentTime().msecsSinceStartOfDay()-systemguitime)>249)// 4 times per second
     {
+        systemGUITimeDelta = 0.001*(QTime::currentTime().msecsSinceStartOfDay()-systemguitime);
+        systemguitime = QTime::currentTime().msecsSinceStartOfDay();
+
         // update live status
         if(GripperAPI.isConnected())
             ConnectedLabel->setText("FW Time: "+QString::number(GripperAPI.getFWTimeStamp()));
@@ -275,79 +464,89 @@ void MainWindow::LatchAndUpdate()
             MotorsStatusLabel->setText(" | Motor Status: ??, ??, ??, ??");
 
         // Data Treeview
+        start = QTime::currentTime().msecsSinceStartOfDay();
         if(treeWidget!=nullptr)
         {
-
+            UpdateTreeView();
         }
+        stop = QTime::currentTime().msecsSinceStartOfDay();
+        deltaTreeView = stop-start;
 
-        // update plot series        
-        if(AllSPDLineSeries!=nullptr)
-        {
-            for(int j = 0; j < AllSPDLineSeries->count(); j++)
+        // update charts - plot series
+        start = QTime::currentTime().msecsSinceStartOfDay();
+        mainChartView->setUpdatesEnabled(false);
+        ((qSPDChart*)mainChartView->chart())->UpdateChartSeries(plotDuration, plotBegin, plotWindowRT);
+        mainChartView->setUpdatesEnabled(true);
+        if(childChartViews!=nullptr){
+            for(int i = 0; i< childChartViews->count(); i++)
             {
-                if(AllSPDLineSeries->at(j)->hasTempData())
-                {
-                    AllSPDLineSeries->at(j)->UpdateSeries();
-                    AllSPDLineSeries->at(j)->clearTempData();
-                }
-            }
-        }
+                childChartViews->at(i)->setUpdatesEnabled(false);
+                ((qSPDChart*)childChartViews->at(i)->chart())->UpdateChartSeries(plotDuration, plotBegin, plotWindowRT);
+                childChartViews->at(i)->setUpdatesEnabled(true);
+            }}
 
-        // update plots
-        scalePlots(mainChart->chart());
-
-        if(ChildWindows!=nullptr)
-        {
-            for(int i = 0; i< ChildWindows->count(); i++)
-            {
-                scalePlots(ChildWindows->at(i)->chart());
-
-            }
-        }
+        stop = QTime::currentTime().msecsSinceStartOfDay();
+        deltaPlots = stop-start;
     }
 
     // latch to tempdata, if new data
+    start = QTime::currentTime().msecsSinceStartOfDay();
     if(GripperAPI.newData())
     {
         if(runPlots)
         {
-            if(AllSPDLineSeries!=nullptr)
+            // latch the data
+            if(AllAxisLineSeries!=nullptr)
             {
-                for(int j = 0; j < AllSPDLineSeries->count(); j++)
+                for(int j = 0; j < AllAxisLineSeries->count(); j++)
                 {
-                    AllSPDLineSeries->at(j)->LatchTempData();
+                    AllAxisLineSeries->at(j)->getLine()->LatchTempData(getSPDFloatValue(mcsMotTime,GripperAPI.smDevPtrs[0]->getSPDArray()));
                 }
             }
         }
 
         GripperAPI.clearNewDataFlag();
     }
+    stop = QTime::currentTime().msecsSinceStartOfDay();
+    deltaModel = stop-start;
+    deltaLatchNUpdate = stop-systemmodeltime;
     cycleCounter++;
+    int timerMS;
+    if(latchNUpdateMS <= deltaLatchNUpdate)
+        timerMS = 1;
+    else
+        timerMS = latchNUpdateMS - deltaLatchNUpdate;
+    LatchTimer->start(timerMS);
 }
 void MainWindow::LaunchNewWindow()
 {
-    if(ChildWindows==nullptr)
+    if(childChartViews==nullptr)
     {
-        ChildWindows = new QList<QtCharts::QChartView*>();
+        childChartViews = new QList<QtCharts::QChartView*>();
     }
-    ChildWindows->append(new QtCharts::QChartView());
-    ChildWindows->at(ChildWindows->count()-1)->show();    
-    ChildWindows->at(ChildWindows->count()-1)->setChart(mainChart->chart());
-    ChildWindows->at(ChildWindows->count()-1)->setWindowTitle("Gripper FW Plot");
+    childChartViews->append(new QtCharts::QChartView());
+    childChartViews->at(childChartViews->count()-1)->show();
+    childChartViews->at(childChartViews->count()-1)->setChart(mainChartView->chart());
+    childChartViews->at(childChartViews->count()-1)->setWindowTitle("Gripper FW Plot");
 
     setNewMainChart();
-    for(int i =0; i<SPDSelectionMenu->actions().count(); i++)
+    for(int i =0; i<SPDSelectionMenu0->actions().count(); i++)
     {
-        SPDSelectionMenu->actions().at(i)->setChecked(false);
+        SPDSelectionMenu0->actions().at(i)->setChecked(false);
+        SPDSelectionMenu1->actions().at(i)->setChecked(false);
+        SPDSelectionMenu2->actions().at(i)->setChecked(false);
+        SPDSelectionMenu3->actions().at(i)->setChecked(false);
     }
     duplicatChartAction->setEnabled(false);
 }
 void MainWindow::closeEvent(QCloseEvent *event)
 {
+    runPlots = false;
+    LatchTimer->stop();
     int i;
-    for(i = 0; i < ChildWindows->count(); i++)
+    for(i = 0; i < childChartViews->count(); i++)
     {
-        ChildWindows->at(i)->close();
+        childChartViews->at(i)->close();
     }
     if(treeWidget!=nullptr)
         treeWidget->close();
@@ -355,103 +554,117 @@ void MainWindow::closeEvent(QCloseEvent *event)
 }
 void MainWindow::ToggleSPDSetting()
 {
+    AxisLineSeriesMap* myAxisLineSeries = nullptr;
+    SPDLineSeries* myLineSeries = nullptr;
     QObject* obj = sender();
     bool isPresent=false;
     // is the selected SPD present on the main chart?
     int i;
-    for(i = spdNone+1; i<spdEND; i++)
+    for(i = mcsNone+1; i<mcsEND; i++)
     {
-       if(SPDSelectionMenuActions->at(i-(spdNone+1))==obj)
-       {
-           for(int j=0; j<AllSPDLineSeries->count(); j++)
-           {
-               QtCharts::QLineSeries* t = AllSPDLineSeries->at(j)->isOnChart((enum SPDSelector)i,mainChart->chart());
-               if(t!=nullptr)
-               {
-                   // is present so remove
-                   // remove
-                   isPresent = true;
-                   mainChart->chart()->removeSeries(t);
-                   AllSPDLineSeries->removeAt(j);
-                   break;
-               }
-           }
-       }
+        if(isPresent)
+            break;
+        if(SPDSelectionMenuActions0->at(i-(mcsNone+1))==obj)
+        {
+           // is the Axis SPD at this index on the main chart?
+           myLineSeries = ((qSPDChart*)mainChartView->chart())->getFromChart(GripperAPI.smDevPtrs[0]->getSPDArray()[i].addr);
+
+        }
+        else if(SPDSelectionMenuActions1->at(i-(mcsNone+1))==obj)
+        {
+           // is the Axis SPD at this index on the main chart?
+           myLineSeries = ((qSPDChart*)mainChartView->chart())->getFromChart(GripperAPI.smDevPtrs[1]->getSPDArray()[i].addr);
+
+        }
+        else if(SPDSelectionMenuActions2->at(i-(mcsNone+1))==obj)
+        {
+           // is the Axis SPD at this index on the main chart?
+           myLineSeries = ((qSPDChart*)mainChartView->chart())->getFromChart(GripperAPI.smDevPtrs[2]->getSPDArray()[i].addr);
+
+        }
+        else if(SPDSelectionMenuActions3->at(i-(mcsNone+1))==obj)
+        {
+           // is the Axis SPD at this index on the main chart?
+           myLineSeries = ((qSPDChart*)mainChartView->chart())->getFromChart(GripperAPI.smDevPtrs[3]->getSPDArray()[i].addr);
+
+        }
+        if(myLineSeries!=nullptr)
+        {
+            isPresent = true;
+            ((qSPDChart*)mainChartView->chart())->removeSeries(myLineSeries);
+            for(int q = 0; q<AllAxisLineSeries->count(); q++)
+            {
+                if(AllAxisLineSeries->at(q)->getLine() == myLineSeries)
+                {
+                    AllAxisLineSeries->removeAt(q);
+                    break;
+                }
+            }
+         }
     }
 
     // if should, add the SPD to the main chart
     if(!isPresent)
     {
-        for(i = spdNone+1; i<spdEND; i++)
+        if(AllAxisLineSeries==nullptr)
         {
-           if(SPDSelectionMenuActions->at(i-(spdNone+1))==obj)
+            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltDuration].size = sizeof(plotDuration);
+            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltDuration].addr = &plotDuration;
+            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltBegin].size = sizeof(plotBegin);
+            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltBegin].addr = &plotBegin;
+            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltWindowRt].size = sizeof(plotWindowRT);
+            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltWindowRt].addr = &plotWindowRT;
+
+            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltWndwStart].size = sizeof(((qSPDChart*)mainChartView->chart())->plotWindowStart);
+            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltWndwStart].addr = &((qSPDChart*)mainChartView->chart())->plotWindowStart;
+            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltWndwSamples].size = sizeof(((qSPDChart*)mainChartView->chart())->plotWindowSamples);
+            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltWndwSamples].addr = &((qSPDChart*)mainChartView->chart())->plotWindowSamples;
+            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MaxX].size = sizeof(myAxisLineSeries->getLine()->getLimits()->maxX);
+            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MaxX].addr = &myAxisLineSeries->getLine()->getLimits()->maxX;
+            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MinX].size = sizeof(myAxisLineSeries->getLine()->getLimits()->minX);
+            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MinX].addr = &myAxisLineSeries->getLine()->getLimits()->minX;
+            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MaxY].size = sizeof(myAxisLineSeries->getLine()->getLimits()->maxY);
+            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MaxY].addr = &myAxisLineSeries->getLine()->getLimits()->maxY;
+            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MinY].size = sizeof(myAxisLineSeries->getLine()->getLimits()->minY);
+            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MinY].addr = &myAxisLineSeries->getLine()->getLimits()->minY;
+
+            AllAxisLineSeries=new QList<AxisLineSeriesMap*>();
+        }
+        for(i = mcsNone+1; i<mcsEND; i++)
+        {
+           if(SPDSelectionMenuActions0->at(i-(mcsNone+1))==obj)
            {
-               AllSPDLineSeries->append(new SPDLineSeriesMap((enum SPDSelector)i, &GripperAPI, mainChart->chart() ) );
+                myAxisLineSeries = new AxisLineSeriesMap((enum mcsSPDSelector)i, GripperAPI.smDevPtrs[0], ((qSPDChart*)mainChartView->chart()));
+                AllAxisLineSeries->append(myAxisLineSeries);
+               break;
+           }
+           else if(SPDSelectionMenuActions1->at(i-(mcsNone+1))==obj)
+           {
+                myAxisLineSeries = new AxisLineSeriesMap((enum mcsSPDSelector)i, GripperAPI.smDevPtrs[1], ((qSPDChart*)mainChartView->chart()));
+                AllAxisLineSeries->append(myAxisLineSeries);
+               break;
+           }
+           else if(SPDSelectionMenuActions2->at(i-(mcsNone+1))==obj)
+           {
+                myAxisLineSeries = new AxisLineSeriesMap((enum mcsSPDSelector)i, GripperAPI.smDevPtrs[2], ((qSPDChart*)mainChartView->chart()));
+                AllAxisLineSeries->append(myAxisLineSeries);
+               break;
+           }
+           else if(SPDSelectionMenuActions3->at(i-(mcsNone+1))==obj)
+           {
+                myAxisLineSeries = new AxisLineSeriesMap((enum mcsSPDSelector)i, GripperAPI.smDevPtrs[3], ((qSPDChart*)mainChartView->chart()));
+                AllAxisLineSeries->append(myAxisLineSeries);
                break;
            }
         }
     }
 
-    mainChart->chart()->update();
-    if(AllSPDLineSeries->count()>0)
+    mainChartView->chart()->update();
+
+    if(AllAxisLineSeries->count()>0)
         duplicatChartAction->setEnabled(true);
     else
         duplicatChartAction->setEnabled(false);
 }
 
-SPDLineSeriesMap::SPDLineSeriesMap(enum SPDSelector GripperVarSelectionIn, IMIGripper* GripperAPIPtrIn, QtCharts::QChart* spdChartPtr):
-    spd(GripperVarSelectionIn,GripperAPIPtrIn),
-    spdLine(),
-    tempXY()
-{
-    spdChart = spdChartPtr;
-    spdLine.setName(GripperSPD::getSPDLabelString(GripperVarSelectionIn));
-    spdChart->addSeries(&spdLine);
-    spdLine.attachAxis(spdChart->axes().at(0));
-    spdLine.attachAxis(spdChart->axes().at(1));
-}
 
-QtCharts::QLineSeries* SPDLineSeriesMap::isOnChart(enum SPDSelector GripperVarSelectionIn,  QtCharts::QChart* spdChartPtr)
-{
-    if( (spd.getSPDSelector()==GripperVarSelectionIn && spdChart==spdChartPtr))
-        return &spdLine;
-    else
-        return nullptr;
-}
-bool SPDLineSeriesMap::isOnChart(QtCharts::QChart* spdChartPtr)
-{
-    return (spdChart==spdChartPtr);
-}
-void SPDLineSeriesMap::UpdateSeries()
-{
-    spdLine.append(tempXY);
-}
-void SPDLineSeriesMap::LatchTempData()
-{
-    if(spd.getGripperAPIPtr()->getFWTimeStamp()>maxTime)
-        maxTime = spd.getGripperAPIPtr()->getFWTimeStamp();
-    if(spd.getGripperAPIPtr()->getFWTimeStamp()<minTime)
-        minTime = spd.getGripperAPIPtr()->getFWTimeStamp();
-    if(spd.getSPDFloatValue()>maxY)
-        maxY = spd.getSPDFloatValue();
-    if(spd.getSPDFloatValue()<minY)
-        minY = spd.getSPDFloatValue();
-    tempXY.append( *(new QPointF(spd.getGripperAPIPtr()->getFWTimeStamp(),spd.getSPDFloatValue())));
-}
-bool SPDLineSeriesMap::hasTempData()
-{
-    return (tempXY.count()>0);
-}
-void SPDLineSeriesMap::clearTempData()
-{
-    tempXY.clear();
-}
-void SPDLineSeriesMap::clearSeriesData()
-{
-    tempXY.clear();
-    spdLine.clear();
-    maxTime = 0;
-    minTime = std::numeric_limits<unsigned int>::max();
-    maxY = -std::numeric_limits<float>::max();
-    minY = std::numeric_limits<float>::max();
-}

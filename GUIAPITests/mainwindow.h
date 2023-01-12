@@ -2,10 +2,6 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QLabel>
-#include <QTime>
-#include <QTimer>
-
 #include "qccos.h"
 #include "IMIGripper.hpp"
 
@@ -13,42 +9,13 @@ QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
 
-class SPDLineSeriesMap
-{
-private:
-    GripperSPD spd;
-    QtCharts::QLineSeries spdLine;
-    QtCharts::QChart* spdChart = nullptr;
-    QList<QPointF> tempXY;
-    unsigned int minTime = std::numeric_limits<unsigned int>::max();
-    unsigned int maxTime = 0;
-    float minY = std::numeric_limits<float>::max();
-    float maxY = -std::numeric_limits<float>::max();
-
-
-public:
-    SPDLineSeriesMap(enum SPDSelector GripperVarSelectionIn, IMIGripper* GripperAPIPtrIn, QtCharts::QChart* spdChartPtr);
-    QtCharts::QLineSeries* isOnChart(enum SPDSelector GripperVarSelectionIn,  QtCharts::QChart* spdChartPtr);
-    bool isOnChart(QtCharts::QChart* spdChartPtr);
-    void UpdateSeries();
-    void LatchTempData();
-    bool hasTempData();
-    void clearTempData();
-    unsigned int getMaxTime(){return maxTime;}
-    unsigned int getMinTime(){return minTime;}
-    float getMaxY(){return maxY;}
-    float getMinY(){return minY;}
-    QtCharts::QChart* getSPDChartPtr(){return spdChart;}
-    void clearSeriesData();
-};
-
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
 
 public:
-
     IMIGripper GripperAPI;
+
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
@@ -67,22 +34,43 @@ private slots:
     void ClearPlots();
     void ShowTreeView();
 
+    void spdTableChange(QTreeWidgetItem*,int);
+    void spdTableEditItem(QTreeWidgetItem*,int);
+
 private:
-    bool runPlots = true;
-    struct maxMinstruct
-    {
-      float minX, maxX, minY, maxY;
-    };
-    void scalePlots(QtCharts::QChart* chartPtr);
+    const int latchNUpdateMS = 10;
+    bool jogonecycle = false;
+    UI_8 runPlots = ui8TRUE;
+
+    float plotDuration = 0.001;
+    float plotBegin = 0;
+    UI_8 plotWindowRT = ui8TRUE;
+
     void setNewMainChart();
+    void UpdateTreeView();
+
     Ui::MainWindow *ui = nullptr;
     QTreeWidget *treeWidget = nullptr;
-    QtCharts::QChartView* mainChart = nullptr;
-    QList<QtCharts::QChartView*> *ChildWindows = nullptr;
-    QList<SPDLineSeriesMap*> *AllSPDLineSeries = nullptr;
+    QtCharts::QChartView* mainChartView = nullptr;
+    QList<QtCharts::QChartView*> *childChartViews = nullptr;
 
-    QMenu *SPDSelectionMenu = nullptr;
-    QList<QAction*> *SPDSelectionMenuActions = nullptr;
+    QList<AxisLineSeriesMap*> *AllAxisLineSeries = nullptr;
+
+    unsigned int cycleCounter = 0;
+    unsigned int systemguitime = QTime::currentTime().msecsSinceStartOfDay();
+    unsigned int systemmodeltime = QTime::currentTime().msecsSinceStartOfDay();
+    float systemModelTimeDelta = 0;
+    float systemGUITimeDelta = 0;
+    float start, stop, deltaTreeView, deltaPlots, deltaModel, deltaLatchNUpdate;
+
+    QMenu *SPDSelectionMenu0 = nullptr;
+    QMenu *SPDSelectionMenu1 = nullptr;
+    QMenu *SPDSelectionMenu2 = nullptr;
+    QMenu *SPDSelectionMenu3 = nullptr;
+    QList<QAction*> *SPDSelectionMenuActions0 = nullptr;
+    QList<QAction*> *SPDSelectionMenuActions1 = nullptr;
+    QList<QAction*> *SPDSelectionMenuActions2 = nullptr;
+    QList<QAction*> *SPDSelectionMenuActions3 = nullptr;
 
     QAction *stopAction = nullptr;
     QAction *openAction = nullptr;

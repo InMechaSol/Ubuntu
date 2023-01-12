@@ -6,6 +6,7 @@
 // Include additional application files as needed
 #include <iostream>  // for cin/cout
 
+
 //////////////////////////////////////////////////////////
 /// \class The gcControl_ApplicationClass class
 /// \brief Main application class for Gripper Control Service
@@ -208,11 +209,31 @@ int apimain()
     return RETURN_ERROR;
 }
 
+
+
+#define FWDataPtr theApplicationExample.gcControl_compMod.getGripperFWDataPtr()
+//////////////////////////////////////////////////////////
+/// Static SPD Serialization Data
+struct SPDStruct AxisSPDStructArray0[mcsEND];
+struct SPDStruct AxisSPDStructArray1[mcsEND];
+struct SPDStruct AxisSPDStructArray2[mcsEND];
+struct SPDStruct AxisSPDStructArray3[mcsEND];
+
+SmartMotorDevice smDev0(&FWDataPtr->SmartMotors[0].AxisData, &AxisSPDStructArray0[0]);
+SmartMotorDevice smDev1(&FWDataPtr->SmartMotors[1].AxisData, &AxisSPDStructArray1[0]);
+SmartMotorDevice smDev2(&FWDataPtr->SmartMotors[2].AxisData, &AxisSPDStructArray2[0]);
+SmartMotorDevice smDev3(&FWDataPtr->SmartMotors[3].AxisData, &AxisSPDStructArray3[0]);
+
+
 //////////////////////////////////////////////////////////////////
 // Finally
 // Define the API class
-
-IMIGripper::IMIGripper():apiThread(&apimain){}
+IMIGripper::IMIGripper():apiThread(&apimain){
+    smDevPtrs[0] = &smDev0;
+    smDevPtrs[1] = &smDev1;
+    smDevPtrs[2] = &smDev2;
+    smDevPtrs[3] = &smDev3;
+}
 
 bool IMIGripper::isConnected()
 {
@@ -228,7 +249,8 @@ void IMIGripper::clearNewDataFlag()
 }
 
 
-#define FWDataPtr theApplicationExample.gcControl_compMod.getGripperFWDataPtr()
+
+
 const char* IMIGripper::MotorStatusShortString(int motorIndex)
 {
     if(FWDataPtr->SmartMotors[motorIndex].Connected)
@@ -267,69 +289,4 @@ IMIGripper::joints_state IMIGripper::get_positions()
     return pos;
 }
 
-///////////////////////////////////////////////////////////////////////////
-//
-//
-enum SPDSelector GripperSPD::getSPDSelector()
-{
-    return GripperVarSelection;
-}
-
-GripperSPD::GripperSPD(enum SPDSelector GripperVarSelectionIn, IMIGripper* GripperAPIPtrIn)
-{
-    GripperVarSelection = GripperVarSelectionIn;
-    GripperAPIPtr =GripperAPIPtrIn;
-}
-IMIGripper* GripperSPD::getGripperAPIPtr()
-{
-    return GripperAPIPtr;
-}
-const char* GripperSPD::getSPDLabelString(enum SPDSelector GripperVarSelectionIn)
-{
-    switch(GripperVarSelectionIn)
-    {
-    case spdPos0: return "Position0";
-    case spdPos1: return "Position1";
-    case spdPos2: return "Position2";
-    case spdPos3: return "Position3";
-    case spdVel0: return "Velocity0";
-    case spdVel1: return "Velocity1";
-    case spdVel2: return "Velocity2";
-    case spdVel3: return "Velocity3";
-    case spdPWM0: return "PWM0";
-    case spdPWM1: return "PWM1";
-    case spdPWM2: return "PWM2";
-    case spdPWM3: return "PWM3";
-    case spdCur0: return "Current0";
-    case spdCur1: return "Current1";
-    case spdCur2: return "Current2";
-    case spdCur3: return "Current3";
-
-    default: return "Invalid!";
-    }
-}
-float GripperSPD::getSPDFloatValue()
-{
-    switch(GripperVarSelection)
-    {
-    case spdPos0: return FWDataPtr->SmartMotors[0].RotorPositionFbk;
-    case spdPos1: return FWDataPtr->SmartMotors[1].RotorPositionFbk;
-    case spdPos2: return FWDataPtr->SmartMotors[2].RotorPositionFbk;
-    case spdPos3: return FWDataPtr->SmartMotors[3].RotorPositionFbk;
-    case spdVel0: return FWDataPtr->SmartMotors[0].RotorVelocityFbk;
-    case spdVel1: return FWDataPtr->SmartMotors[1].RotorVelocityFbk;
-    case spdVel2: return FWDataPtr->SmartMotors[2].RotorVelocityFbk;
-    case spdVel3: return FWDataPtr->SmartMotors[3].RotorVelocityFbk;
-    case spdPWM0: return FWDataPtr->SmartMotors[0].MotorPWMCmd;
-    case spdPWM1: return FWDataPtr->SmartMotors[1].MotorPWMCmd;
-    case spdPWM2: return FWDataPtr->SmartMotors[2].MotorPWMCmd;
-    case spdPWM3: return FWDataPtr->SmartMotors[3].MotorPWMCmd;
-    case spdCur0: return FWDataPtr->SmartMotors[0].MotorCurrentFbk;
-    case spdCur1: return FWDataPtr->SmartMotors[1].MotorCurrentFbk;
-    case spdCur2: return FWDataPtr->SmartMotors[2].MotorCurrentFbk;
-    case spdCur3: return FWDataPtr->SmartMotors[3].MotorCurrentFbk;
-
-    default: return 0.0;
-    }
-}
 

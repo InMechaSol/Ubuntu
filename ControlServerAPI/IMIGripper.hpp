@@ -19,7 +19,7 @@ Notes:
 
 */
 
-
+#include "motionControlSerialize.h"
 #include <cstdint>
 #include <array>
 #include <thread>
@@ -259,39 +259,7 @@ public:
      * @return
      */
     bool isSystemCalibrated();
-};
 
-enum SPDSelector
-{
-    spdNone,
-    spdPos0,
-    spdPos1,
-    spdPos2,
-    spdPos3,
-    spdVel0,
-    spdVel1,
-    spdVel2,
-    spdVel3,
-    spdPWM0,
-    spdPWM1,
-    spdPWM2,
-    spdPWM3,
-    spdCur0,
-    spdCur1,
-    spdCur2,
-    spdCur3,
-    spdEND
-};
-
-class GripperSPD
-{
-private:
-    IMIGripper* GripperAPIPtr = nullptr;
-    enum SPDSelector GripperVarSelection = spdNone;
-public:
-    GripperSPD(enum SPDSelector GripperVarSelectionIn, IMIGripper* GripperAPIPtrIn);
-    static const char* getSPDLabelString(enum SPDSelector GripperVarSelectionIn);
-    float getSPDFloatValue();
-    enum SPDSelector getSPDSelector();
-    IMIGripper* getGripperAPIPtr();
+    // SPD API
+    SmartMotorDevice* smDevPtrs[4];
 };

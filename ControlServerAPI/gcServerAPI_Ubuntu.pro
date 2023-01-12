@@ -23,7 +23,7 @@ ccOSMainsDIR = $${PWD}
 
 ############################################################ LIBs
 # Select All Libs
-CONFIG += ccNOosLibs_mcs
+#CONFIG += ccNOosLibs_mcs
 # Select All Devices
 #CONFIG += ccNOosAllDevs
 #CONFIG += ccOSDevs_ft232h
