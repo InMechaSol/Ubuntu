@@ -1,4 +1,3 @@
-//#include "Platform_ccOS.hpp"
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include <QMenu>
@@ -94,7 +93,8 @@ MainWindow::MainWindow(QWidget *parent)
     LatchTimer = new QTimer(this);
     connect(LatchTimer, SIGNAL(timeout()), this, SLOT(LatchAndUpdate()) );
     LatchTimer->start(latchNUpdateMS);
-    //RunPausePlots();
+    RunPausePlots();
+    ShowTreeView();
 
 }
 
@@ -173,11 +173,24 @@ void MainWindow::UpdateTreeView()
             // Axis - Position
             for(int i = mcsPosCMD; i <= mcsPosNLim; i++)
             {
+                // DEBUG---REMOVE
+                if(i==mcsPosERR)
+                {
+                    struct SPDStruct* myArPtr = GripperAPI.smDevPtrs[iM]->getSPDArray();
+                    float myfloat = getSPDFloatValue(mcsPosERR,myArPtr);
+
+                       myfloat++;
+                       myfloat--;
+
+                }
                 treeWidget->topLevelItem(iM)->child(1)->child(i-mcsPosCMD)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,GripperAPI.smDevPtrs[iM]->getSPDArray())));
             }
             // Axis - Position Control
             for(int i = mcsPosCtrldT; i <= mcsPosCtrlcmdVel; i++)
             {
+
+
+
                 treeWidget->topLevelItem(iM)->child(2)->child(i-mcsPosCtrldT)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,GripperAPI.smDevPtrs[iM]->getSPDArray())));
             }
             // Axis - Velocity
@@ -214,11 +227,13 @@ void MainWindow::UpdateTreeView()
         // Chart - Main Window
         for(int i = guiPltWndwStart; i <= guiPltWindowRt; i++)
         {
+            if(((qSPDChart*)mainChartView->chart())->getSPDArray()[i].addr != nullptr)
             treeWidget->topLevelItem(4)->child(0)->child(i-guiPltWndwStart)->setText(1, QString::number(getSPDFloatValue((enum guiSPDSelector)i, ((qSPDChart*)mainChartView->chart())->getSPDArray())));
         }
         // Chart - Line Series 0
         for(int i = guiChrt0MaxX; i <= guiChrt0DurPerSamp; i++)
         {
+            if(((qSPDChart*)mainChartView->chart())->getSPDArray()[i].addr != nullptr)
             treeWidget->topLevelItem(4)->child(1)->child(i-guiChrt0MaxX)->setText(1, QString::number(getSPDFloatValue((enum guiSPDSelector)i, ((qSPDChart*)mainChartView->chart())->getSPDArray())));
         }
     }
@@ -314,29 +329,35 @@ void MainWindow::spdTableChange(QTreeWidgetItem* wd,int i)
 {
     int minIndex = 0;
     SPDStruct* arPtr = nullptr;
+    int arIndex = 99;
+    bool goodParse;
     if(i==1 && fromEdit)
     {
-        if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==GripperAPI.smDevPtrs[0])
+        if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==GripperAPI.smDevPtrs[0]->getSPDArray()[((SPDTreeWidgetItem*)wd)->GetVarSelectionIn()].addr)
         {
             minIndex = mcsNone;
             arPtr = GripperAPI.smDevPtrs[0]->getSPDArray();
+            arIndex = 0;
         }
-        else if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==GripperAPI.smDevPtrs[1])
+        else if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==GripperAPI.smDevPtrs[1]->getSPDArray()[((SPDTreeWidgetItem*)wd)->GetVarSelectionIn()].addr)
         {
             minIndex = mcsNone;
             arPtr = GripperAPI.smDevPtrs[1]->getSPDArray();
+            arIndex = 1;
         }
-        else if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==GripperAPI.smDevPtrs[2])
+        else if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==GripperAPI.smDevPtrs[2]->getSPDArray()[((SPDTreeWidgetItem*)wd)->GetVarSelectionIn()].addr)
         {
             minIndex = mcsNone;
             arPtr = GripperAPI.smDevPtrs[2]->getSPDArray();
+            arIndex = 2;
         }
-        else if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==GripperAPI.smDevPtrs[3])
+        else if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==GripperAPI.smDevPtrs[3]->getSPDArray()[((SPDTreeWidgetItem*)wd)->GetVarSelectionIn()].addr)
         {
             minIndex = mcsNone;
             arPtr = GripperAPI.smDevPtrs[3]->getSPDArray();
+            arIndex = 3;
         }
-        else if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==((qSPDChart*)mainChartView->chart()))
+        else if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==((qSPDChart*)mainChartView->chart())->getSPDArray()[((SPDTreeWidgetItem*)wd)->GetVarSelectionIn()].addr)
         {
             minIndex = guiNone;
             arPtr = ((qSPDChart*)mainChartView->chart())->getSPDArray();
@@ -346,14 +367,17 @@ void MainWindow::spdTableChange(QTreeWidgetItem* wd,int i)
         {
             if(!arPtr[((SPDTreeWidgetItem*)wd)->GetVarSelectionIn()].readonly)
             {
-                // NEW SPD set from String Function - Use it HERE!
-                //setSPDFromString(wd->text(i).toStdString().c_str(), ((SPDTreeWidgetItem*)wd)->GetVarSelectionIn(), arPtr);
-
-                // And set in packet function...for use on GUI API Tests for Gripper
-                bool goodParse;
-                float tempFloat = wd->text(i).toFloat(&goodParse);
-                if(goodParse)
-                    setSPDFloatValue(tempFloat, ((SPDTreeWidgetItem*)wd)->GetVarSelectionIn(), arPtr);
+                // local only, no package, only parse
+                if(arIndex > 3)
+                {
+                    // if good parse set local SPD value
+                    goodParse = setSPDFromString((char*)wd->text(i).toStdString().c_str(), &arPtr[((SPDTreeWidgetItem*)wd)->GetVarSelectionIn()]);
+                }
+                else // remote FW, parse to temp, then package for transmission
+                {
+                    // if good parse trigger packaging
+                    goodParse = GripperAPI.tryPackageGripperSPDFromString((char*)wd->text(i).toStdString().c_str(),((SPDTreeWidgetItem*)wd)->GetVarSelectionIn(), arPtr);
+                }
             }
         }
         wd->setFlags(wd->flags() & ~Qt::ItemIsEditable);
@@ -368,27 +392,27 @@ void MainWindow::spdTableEditItem(QTreeWidgetItem* wd,int i)
     SPDStruct* arPtr = nullptr;
     if(i==1)
     {
-        if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==GripperAPI.smDevPtrs[0])
+        if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==GripperAPI.smDevPtrs[0]->getSPDArray()[((SPDTreeWidgetItem*)wd)->GetVarSelectionIn()].addr)
         {
             minIndex = mcsNone;
             arPtr = GripperAPI.smDevPtrs[0]->getSPDArray();
         }
-        else if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==GripperAPI.smDevPtrs[1])
+        else if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==GripperAPI.smDevPtrs[1]->getSPDArray()[((SPDTreeWidgetItem*)wd)->GetVarSelectionIn()].addr)
         {
             minIndex = mcsNone;
             arPtr = GripperAPI.smDevPtrs[1]->getSPDArray();
         }
-        else if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==GripperAPI.smDevPtrs[2])
+        else if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==GripperAPI.smDevPtrs[2]->getSPDArray()[((SPDTreeWidgetItem*)wd)->GetVarSelectionIn()].addr)
         {
             minIndex = mcsNone;
             arPtr = GripperAPI.smDevPtrs[2]->getSPDArray();
         }
-        else if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==GripperAPI.smDevPtrs[3])
+        else if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==GripperAPI.smDevPtrs[3]->getSPDArray()[((SPDTreeWidgetItem*)wd)->GetVarSelectionIn()].addr)
         {
             minIndex = mcsNone;
             arPtr = GripperAPI.smDevPtrs[3]->getSPDArray();
         }
-        else if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==((qSPDChart*)mainChartView->chart()))
+        else if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==((qSPDChart*)mainChartView->chart())->getSPDArray()[((SPDTreeWidgetItem*)wd)->GetVarSelectionIn()].addr)
         {
             minIndex = guiNone;
             arPtr = ((qSPDChart*)mainChartView->chart())->getSPDArray();
@@ -500,7 +524,7 @@ void MainWindow::LatchAndUpdate()
             {
                 for(int j = 0; j < AllAxisLineSeries->count(); j++)
                 {
-                    AllAxisLineSeries->at(j)->getLine()->LatchTempData(getSPDFloatValue(mcsMotTime,GripperAPI.smDevPtrs[0]->getSPDArray()));
+                    AllAxisLineSeries->at(j)->getLine()->LatchTempData(GripperAPI.getFWTimeStamp());
                 }
             }
         }
@@ -544,10 +568,14 @@ void MainWindow::closeEvent(QCloseEvent *event)
     runPlots = false;
     LatchTimer->stop();
     int i;
-    for(i = 0; i < childChartViews->count(); i++)
+    if(childChartViews!=nullptr)
     {
-        childChartViews->at(i)->close();
+        for(i = 0; i < childChartViews->count(); i++)
+        {
+            childChartViews->at(i)->close();
+        }
     }
+
     if(treeWidget!=nullptr)
         treeWidget->close();
     QWidget::closeEvent(event);
@@ -600,14 +628,54 @@ void MainWindow::ToggleSPDSetting()
                     break;
                 }
             }
+            if(AllAxisLineSeries->count()==0)
+            {
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MaxX].size = 0;
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MaxX].addr = nullptr;
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MinX].size = 0;
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MinX].addr = nullptr;
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MaxY].size = 0;
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MaxY].addr = nullptr;
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MinY].size = 0;
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MinY].addr = nullptr;
+            }
          }
     }
 
     // if should, add the SPD to the main chart
     if(!isPresent)
-    {
-        if(AllAxisLineSeries==nullptr)
+    {        
+        for(i = mcsNone+1; i<mcsEND; i++)
         {
+           if(SPDSelectionMenuActions0->at(i-(mcsNone+1))==obj)
+           {
+                myAxisLineSeries = new AxisLineSeriesMap(0,(enum mcsSPDSelector)i, GripperAPI.smDevPtrs[0], ((qSPDChart*)mainChartView->chart()));
+
+               break;
+           }
+           else if(SPDSelectionMenuActions1->at(i-(mcsNone+1))==obj)
+           {
+                myAxisLineSeries = new AxisLineSeriesMap(1,(enum mcsSPDSelector)i, GripperAPI.smDevPtrs[1], ((qSPDChart*)mainChartView->chart()));
+
+               break;
+           }
+           else if(SPDSelectionMenuActions2->at(i-(mcsNone+1))==obj)
+           {
+                myAxisLineSeries = new AxisLineSeriesMap(2,(enum mcsSPDSelector)i, GripperAPI.smDevPtrs[2], ((qSPDChart*)mainChartView->chart()));
+
+               break;
+           }
+           else if(SPDSelectionMenuActions3->at(i-(mcsNone+1))==obj)
+           {
+                myAxisLineSeries = new AxisLineSeriesMap(3,(enum mcsSPDSelector)i, GripperAPI.smDevPtrs[3], ((qSPDChart*)mainChartView->chart()));
+
+               break;
+           }
+
+        }
+
+
+        if(AllAxisLineSeries==nullptr){
             ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltDuration].size = sizeof(plotDuration);
             ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltDuration].addr = &plotDuration;
             ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltBegin].size = sizeof(plotBegin);
@@ -619,52 +687,39 @@ void MainWindow::ToggleSPDSetting()
             ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltWndwStart].addr = &((qSPDChart*)mainChartView->chart())->plotWindowStart;
             ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltWndwSamples].size = sizeof(((qSPDChart*)mainChartView->chart())->plotWindowSamples);
             ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltWndwSamples].addr = &((qSPDChart*)mainChartView->chart())->plotWindowSamples;
-            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MaxX].size = sizeof(myAxisLineSeries->getLine()->getLimits()->maxX);
-            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MaxX].addr = &myAxisLineSeries->getLine()->getLimits()->maxX;
-            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MinX].size = sizeof(myAxisLineSeries->getLine()->getLimits()->minX);
-            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MinX].addr = &myAxisLineSeries->getLine()->getLimits()->minX;
-            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MaxY].size = sizeof(myAxisLineSeries->getLine()->getLimits()->maxY);
-            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MaxY].addr = &myAxisLineSeries->getLine()->getLimits()->maxY;
-            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MinY].size = sizeof(myAxisLineSeries->getLine()->getLimits()->minY);
-            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MinY].addr = &myAxisLineSeries->getLine()->getLimits()->minY;
-
             AllAxisLineSeries=new QList<AxisLineSeriesMap*>();
         }
-        for(i = mcsNone+1; i<mcsEND; i++)
+
+        if(myAxisLineSeries!=nullptr)
+            AllAxisLineSeries->append(myAxisLineSeries);
+
+        if(AllAxisLineSeries!=nullptr)
         {
-           if(SPDSelectionMenuActions0->at(i-(mcsNone+1))==obj)
-           {
-                myAxisLineSeries = new AxisLineSeriesMap((enum mcsSPDSelector)i, GripperAPI.smDevPtrs[0], ((qSPDChart*)mainChartView->chart()));
-                AllAxisLineSeries->append(myAxisLineSeries);
-               break;
-           }
-           else if(SPDSelectionMenuActions1->at(i-(mcsNone+1))==obj)
-           {
-                myAxisLineSeries = new AxisLineSeriesMap((enum mcsSPDSelector)i, GripperAPI.smDevPtrs[1], ((qSPDChart*)mainChartView->chart()));
-                AllAxisLineSeries->append(myAxisLineSeries);
-               break;
-           }
-           else if(SPDSelectionMenuActions2->at(i-(mcsNone+1))==obj)
-           {
-                myAxisLineSeries = new AxisLineSeriesMap((enum mcsSPDSelector)i, GripperAPI.smDevPtrs[2], ((qSPDChart*)mainChartView->chart()));
-                AllAxisLineSeries->append(myAxisLineSeries);
-               break;
-           }
-           else if(SPDSelectionMenuActions3->at(i-(mcsNone+1))==obj)
-           {
-                myAxisLineSeries = new AxisLineSeriesMap((enum mcsSPDSelector)i, GripperAPI.smDevPtrs[3], ((qSPDChart*)mainChartView->chart()));
-                AllAxisLineSeries->append(myAxisLineSeries);
-               break;
-           }
+            if(AllAxisLineSeries->count()>0)
+            {
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MaxX].size = sizeof(AllAxisLineSeries->at(0)->getLine()->getLimits()->maxX);
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MaxX].addr = &AllAxisLineSeries->at(0)->getLine()->getLimits()->maxX;
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MinX].size = sizeof(AllAxisLineSeries->at(0)->getLine()->getLimits()->minX);
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MinX].addr = &AllAxisLineSeries->at(0)->getLine()->getLimits()->minX;
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MaxY].size = sizeof(AllAxisLineSeries->at(0)->getLine()->getLimits()->maxY);
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MaxY].addr = &AllAxisLineSeries->at(0)->getLine()->getLimits()->maxY;
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MinY].size = sizeof(AllAxisLineSeries->at(0)->getLine()->getLimits()->minY);
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MinY].addr = &AllAxisLineSeries->at(0)->getLine()->getLimits()->minY;
+            }
         }
+
     }
 
     mainChartView->chart()->update();
 
-    if(AllAxisLineSeries->count()>0)
-        duplicatChartAction->setEnabled(true);
-    else
-        duplicatChartAction->setEnabled(false);
+    if(AllAxisLineSeries!=nullptr)
+    {
+        if(AllAxisLineSeries->count()>0)
+            duplicatChartAction->setEnabled(true);
+        else
+            duplicatChartAction->setEnabled(false);
+    }
+
 }
 
 

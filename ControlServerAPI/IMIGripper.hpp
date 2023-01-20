@@ -60,6 +60,7 @@ public:
     bool isConnected();
     std::thread apiThread;
     IMIGripper();
+    ~IMIGripper();
 
     const char* MotorStatusShortString(int motorIndex);
 
@@ -262,4 +263,5 @@ public:
 
     // SPD API
     SmartMotorDevice* smDevPtrs[4];
+    bool tryPackageGripperSPDFromString(char* inString, int VarSelectionIn, struct SPDStruct* DataStructArray);
 };

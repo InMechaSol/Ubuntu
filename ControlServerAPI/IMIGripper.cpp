@@ -214,16 +214,10 @@ int apimain()
 #define FWDataPtr theApplicationExample.gcControl_compMod.getGripperFWDataPtr()
 //////////////////////////////////////////////////////////
 /// Static SPD Serialization Data
-struct SPDStruct AxisSPDStructArray0[mcsEND];
-struct SPDStruct AxisSPDStructArray1[mcsEND];
-struct SPDStruct AxisSPDStructArray2[mcsEND];
-struct SPDStruct AxisSPDStructArray3[mcsEND];
-
-SmartMotorDevice smDev0(&FWDataPtr->SmartMotors[0].AxisData, &AxisSPDStructArray0[0]);
-SmartMotorDevice smDev1(&FWDataPtr->SmartMotors[1].AxisData, &AxisSPDStructArray1[0]);
-SmartMotorDevice smDev2(&FWDataPtr->SmartMotors[2].AxisData, &AxisSPDStructArray2[0]);
-SmartMotorDevice smDev3(&FWDataPtr->SmartMotors[3].AxisData, &AxisSPDStructArray3[0]);
-
+SmartMotorDevice smDev0(&FWDataPtr->SmartMotors[0].AxisData, &FWDataPtr->SmartMotors[0].AxisSPDStructArray[0]);
+SmartMotorDevice smDev1(&FWDataPtr->SmartMotors[1].AxisData, &FWDataPtr->SmartMotors[1].AxisSPDStructArray[0]);
+SmartMotorDevice smDev2(&FWDataPtr->SmartMotors[2].AxisData, &FWDataPtr->SmartMotors[2].AxisSPDStructArray[0]);
+SmartMotorDevice smDev3(&FWDataPtr->SmartMotors[3].AxisData, &FWDataPtr->SmartMotors[3].AxisSPDStructArray[0]);
 
 //////////////////////////////////////////////////////////////////
 // Finally
@@ -234,7 +228,56 @@ IMIGripper::IMIGripper():apiThread(&apimain){
     smDevPtrs[2] = &smDev2;
     smDevPtrs[3] = &smDev3;
 }
+IMIGripper::~IMIGripper()
+{
+    std::terminate();
+}
 
+bool IMIGripper::tryPackageGripperSPDFromString(char* inString, int VarSelectionIn, struct SPDStruct* DataStructArray)
+{
+    // latch selector to temp SPD
+    FWDataPtr->myDataStruct.selcector = VarSelectionIn;
+
+    // determine SPD type to parse into
+    switch (DataStructArray[VarSelectionIn].size)
+    {
+        case sizeof(union SPD8)  : FWDataPtr->myDataStruct.addr = &FWDataPtr->myTempSPD8;  break;
+        case sizeof(union SPD16) : FWDataPtr->myDataStruct.addr = &FWDataPtr->myTempSPD16; break;
+        case sizeof(union SPD32) : FWDataPtr->myDataStruct.addr = &FWDataPtr->myTempSPD32; break;
+        case sizeof(union SPD64) : FWDataPtr->myDataStruct.addr = &FWDataPtr->myTempSPD64; break;
+    default: FWDataPtr->myDataStruct.addr = nullptr;
+    }
+
+    // copy size and type from target SPD to tempSPD
+    FWDataPtr->myDataStruct.size = DataStructArray[VarSelectionIn].size;
+    FWDataPtr->myDataStruct.type = DataStructArray[VarSelectionIn].type;
+
+
+    // attempt to parse into temp SPD
+    if (setSPDFromString(inString, &FWDataPtr->myDataStruct))
+    {
+        // upper 5 bits for SPD array selection
+        for(int f = 0; f < NUMMOTORS; f++)
+            if(DataStructArray==smDevPtrs[f]->getSPDArray())
+                FWDataPtr->spdPacketID = ((f+1)<<3)&0b11111000;// pID - high
+
+        // lower 3 bits for access type
+        FWDataPtr->spdPacketID |= 0b00000001;// pID - low
+
+
+        // packet type bytes = SPD selector
+        FWDataPtr->spdPacketType = VarSelectionIn;
+
+        // set flag to package in next call of packageGripperPacketsAPI()
+        FWDataPtr->PackageSPDEdit = ui8TRUE;
+        return ui8TRUE;
+    }
+    else
+    {
+        // indicate failure
+        return ui8FALSE;
+    }
+}
 bool IMIGripper::isConnected()
 {
     return theApplicationExample.FWCtrlClient_exeThread.FWConnected;

@@ -6,8 +6,8 @@ DEFINES += PLATFORM_ccOS
 QMAKE_CXXFLAGS = -fPIC
 QMAKE_CFLAGS = -fPIC
 QMAKE_LFLAGS += -lrt -lpthread
-QMAKE_EXT_CPP = .cpp
-QMAKE_EXT_H = .h .hpp .c
+#QMAKE_EXT_CPP = .cpp
+#QMAKE_EXT_H = .h .hpp .c
 
 
 
