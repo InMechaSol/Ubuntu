@@ -170,6 +170,14 @@ void MainWindow::UpdateTreeView()
             {
                 treeWidget->topLevelItem(iM)->child(0)->child(i-mcsPlndT)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,GripperAPI.smDevPtrs[iM]->getSPDArray())));
             }
+
+
+            // Axis - Planning - Command Generator
+            for(int i = mcsCMDgenOutput; i <= mcsCMDgenDutyCycle; i++)
+            {
+                treeWidget->topLevelItem(iM)->child(0)->child(treeWidget->topLevelItem(iM)->child(0)->childCount()-1)->child(i-mcsCMDgenOutput)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,GripperAPI.smDevPtrs[iM]->getSPDArray())));
+            }
+
             // Axis - Position
             for(int i = mcsPosCMD; i <= mcsPosNLim; i++)
             {
@@ -219,7 +227,7 @@ void MainWindow::UpdateTreeView()
                 treeWidget->topLevelItem(iM)->child(7)->child(i-mcsCurCtrldT)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,GripperAPI.smDevPtrs[iM]->getSPDArray())));
             }
             // Axis - Torque, Voltage, PWM
-            for(int i = mcsPWMCMD; i <= mcsPWMCMD; i++)
+            for(int i = mcsPWMCMD; i <= (mcsEND-1); i++)
             {
                 treeWidget->topLevelItem(iM)->child(8)->child(i-mcsPWMCMD)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,GripperAPI.smDevPtrs[iM]->getSPDArray())));
             }
@@ -257,10 +265,17 @@ void MainWindow::ShowTreeView()
         for(int i = mcsPlndT; i <= mcsDesiredControlMode; i++)
             items.at(iM)->child(0)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,GripperAPI.smDevPtrs[iM]));
 
+        // Axis - Planning - Command Generator
+        items.at(iM)->child(0)->addChild(new QTreeWidgetItem(QStringList({"Command Generator", "", ""})));
+        for(int i = mcsCMDgenOutput; i <= mcsCMDgenDutyCycle; i++)
+            items.at(iM)->child(0)->child(items.at(iM)->child(0)->childCount()-1)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,GripperAPI.smDevPtrs[iM]));
+
         // Axis - Position
         items.at(iM)->addChild(new QTreeWidgetItem(QStringList({"Position", "", ""})));
         for(int i = mcsPosCMD; i <= mcsPosNLim; i++)
             items.at(iM)->child(1)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,GripperAPI.smDevPtrs[iM]));
+
+
 
         // Axis - Position Control
         items.at(iM)->addChild(new QTreeWidgetItem(QStringList({"Position Loop", "", ""})));
@@ -294,7 +309,7 @@ void MainWindow::ShowTreeView()
 
         // Axis - Torque, Voltage, PWM
         items.at(iM)->addChild(new QTreeWidgetItem(QStringList({"Torque, Volts, PWM", "", ""})));
-        for(int i = mcsPWMCMD; i <= mcsPWMCMD; i++)
+        for(int i = mcsPWMCMD; i <= mcsEND-1; i++)
             items.at(iM)->child(8)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,GripperAPI.smDevPtrs[iM]));
 
     }
