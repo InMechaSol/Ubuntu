@@ -18,6 +18,8 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
+    struct axisStruct smData = createaxisStruct();
+    struct SPDStruct AxisSPDStructArray[mcsEND];
     SmartMotorDevice smMotionTests;
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();

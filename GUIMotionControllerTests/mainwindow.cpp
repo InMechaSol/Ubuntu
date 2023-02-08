@@ -15,7 +15,7 @@
 ///
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
-    , smMotionTests()
+    , smMotionTests(&smData, &AxisSPDStructArray[0])
     , ui(new Ui::MainWindow)
 {
     // temporary status message
@@ -125,6 +125,9 @@ MainWindow::MainWindow(QWidget *parent)
     // Rotor Speed
     SPDSelectionMenuActions->at(mcsMotW-1)->trigger();
 
+    // Reset Model
+    *((UI_8*)smMotionTests.getSPDArray()[mcsLoadReset].addr) = ui8TRUE;
+
     // do this last
     showTreeViewAction->trigger();
 
@@ -186,9 +189,7 @@ void MainWindow::Reset()
             ((qSPDChart*)childChartViews->at(i)->chart())->reset();
     }
     // Reset Model
-    *((UI_8*)smMotionTests.getSPDArray()[mcsCurCtrlReset].addr) = ui8TRUE;
-    *((UI_8*)smMotionTests.getSPDArray()[mcsVelCtrlReset].addr) = ui8TRUE;
-    *((UI_8*)smMotionTests.getSPDArray()[mcsMotReset].addr) = ui8TRUE;
+    *((UI_8*)smMotionTests.getSPDArray()[mcsAxReset].addr) = ui8TRUE;
     resetAction->setEnabled(false);
 }
 static bool fromEdit = false;
@@ -196,50 +197,66 @@ void MainWindow::UpdateTreeView()
 {
     if(!fromEdit)
     {
+        // Axis
+        treeWidget->topLevelItem(0)->child(0)->setText(1, QString::number(getSPDFloatValue(mcsAxCtrlEnabled,smMotionTests.getSPDArray())));
+        treeWidget->topLevelItem(0)->child(1)->setText(1, QString::number(getSPDFloatValue(mcsAxIgnoreEE,smMotionTests.getSPDArray())));
+        treeWidget->topLevelItem(0)->child(2)->setText(1, QString::number(getSPDFloatValue(mcsAxReset,smMotionTests.getSPDArray())));
+        treeWidget->topLevelItem(0)->child(3)->setText(1, QString::number(getSPDFloatValue(mcsAxTime,smMotionTests.getSPDArray())));
+
         // Axis - Planning
         for(int i = mcsPlndT; i <= mcsDesiredControlMode; i++)
         {
-            treeWidget->topLevelItem(0)->child(0)->child(i-mcsPlndT)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,smMotionTests.getSPDArray())));
+            treeWidget->topLevelItem(0)->child(4)->child(i-mcsPlndT)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,smMotionTests.getSPDArray())));
+        }
+        // Axis - Planning - Command Generator
+        for(int i = mcsCMDgenOutput; i <= mcsCMDgenDutyCycle; i++)
+        {
+            treeWidget->topLevelItem(0)->child(4)->child(treeWidget->topLevelItem(0)->child(4)->childCount()-1)->child(i-mcsCMDgenOutput)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,smMotionTests.getSPDArray())));
         }
         // Axis - Position
         for(int i = mcsPosCMD; i <= mcsPosNLim; i++)
         {
-            treeWidget->topLevelItem(0)->child(1)->child(i-mcsPosCMD)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,smMotionTests.getSPDArray())));
+            treeWidget->topLevelItem(0)->child(5)->child(i-mcsPosCMD)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,smMotionTests.getSPDArray())));
         }
         // Axis - Position Control
         for(int i = mcsPosCtrldT; i <= mcsPosCtrlcmdVel; i++)
         {
-            treeWidget->topLevelItem(0)->child(2)->child(i-mcsPosCtrldT)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,smMotionTests.getSPDArray())));
+            treeWidget->topLevelItem(0)->child(6)->child(i-mcsPosCtrldT)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,smMotionTests.getSPDArray())));
         }
         // Axis - Velocity
         for(int i = mcsVelCMD; i <= mcsVelNLim; i++)
         {
-            treeWidget->topLevelItem(0)->child(3)->child(i-mcsVelCMD)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,smMotionTests.getSPDArray())));
+            treeWidget->topLevelItem(0)->child(7)->child(i-mcsVelCMD)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,smMotionTests.getSPDArray())));
         }
         // Axis - Velocity Control
         for(int i = mcsVelCtrldT; i <= mcsVelCtrlSaturated; i++)
         {
-            treeWidget->topLevelItem(0)->child(4)->child(i-mcsVelCtrldT)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,smMotionTests.getSPDArray())));
+            treeWidget->topLevelItem(0)->child(8)->child(i-mcsVelCtrldT)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,smMotionTests.getSPDArray())));
         }
         // Axis - Current
         for(int i = mcsCurCMD; i <= mcsCurNLim; i++)
         {
-            treeWidget->topLevelItem(0)->child(5)->child(i-mcsCurCMD)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,smMotionTests.getSPDArray())));
+            treeWidget->topLevelItem(0)->child(9)->child(i-mcsCurCMD)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,smMotionTests.getSPDArray())));
         }
         // Axis - Motor Model
         for(int i = mcsMotConTorque; i <= mcsMotEff; i++)
         {
-            treeWidget->topLevelItem(0)->child(6)->child(i-mcsMotConTorque)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,smMotionTests.getSPDArray())));
+            treeWidget->topLevelItem(0)->child(10)->child(i-mcsMotConTorque)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,smMotionTests.getSPDArray())));
         }
         // Axis - Current Loop
         for(int i = mcsCurCtrldT; i <= mcsCurCtrlSaturated; i++)
         {
-            treeWidget->topLevelItem(0)->child(7)->child(i-mcsCurCtrldT)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,smMotionTests.getSPDArray())));
+            treeWidget->topLevelItem(0)->child(11)->child(i-mcsCurCtrldT)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,smMotionTests.getSPDArray())));
         }
         // Axis - Torque, Voltage, PWM
-        for(int i = mcsPWMCMD; i <= mcsPWMCMD; i++)
+        for(int i = mcsPWMCMD; i <= (mcsEND-1); i++)
         {
-            treeWidget->topLevelItem(0)->child(8)->child(i-mcsPWMCMD)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,smMotionTests.getSPDArray())));
+            treeWidget->topLevelItem(0)->child(12)->child(i-mcsPWMCMD)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,smMotionTests.getSPDArray())));
+        }
+        // Axis - Load Inertia
+        for(int i = mcsLoadAminRes; i <= mcsLoadEstFriction; i++)
+        {
+            treeWidget->topLevelItem(0)->child(13)->child(i-mcsLoadAminRes)->setText(1, QString::number(getSPDFloatValue((enum mcsSPDSelector)i,smMotionTests.getSPDArray())));
         }
         // Chart - Main Window
         for(int i = guiPltWndwStart; i <= guiPltWindowRt; i++)
@@ -259,69 +276,102 @@ void MainWindow::ShowTreeView()
     treeWidget = new QTreeWidget();    
     treeWidget->setColumnCount(3);
     QList<QTreeWidgetItem *> items;
+    int j,k,l;
 
     treeWidget->setHeaderItem(new QTreeWidgetItem(QStringList({"Parameter","Value","Units"})));
 
     // Top Level Axis Structure
     items.append(new QTreeWidgetItem(QStringList({"Smart Motor Axis", "", ""})));
+    j = items.count()-1;
+    items.at(j)->addChild(new AxisSPDTreeWidgetItem(mcsAxCtrlEnabled,&smMotionTests));
+    j = items.count()-1;
+    items.at(j)->addChild(new AxisSPDTreeWidgetItem(mcsAxIgnoreEE,&smMotionTests));
+    j = items.count()-1;
+    items.at(j)->addChild(new AxisSPDTreeWidgetItem(mcsAxReset,&smMotionTests));
+    j = items.count()-1;
+    items.at(j)->addChild(new AxisSPDTreeWidgetItem(mcsAxTime,&smMotionTests));
 
     // Axis - Planning
-    items.at(0)->addChild(new QTreeWidgetItem(QStringList({"Planning Loop", "", ""})));
+    items.at(j)->addChild(new QTreeWidgetItem(QStringList({"Planning Loop", "", ""})));
+    k = items.at(j)->childCount()-1;
     for(int i = mcsPlndT; i <= mcsDesiredControlMode; i++)
-        items.at(0)->child(0)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,&smMotionTests));
+        items.at(j)->child(k)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,&smMotionTests));
+
+    // Axis - Planning - Command Generator
+    items.at(j)->child(k)->addChild(new QTreeWidgetItem(QStringList({"Command Generator", "", ""})));
+    l = items.at(j)->child(k)->childCount()-1;
+    for(int i = mcsCMDgenOutput; i <= mcsCMDgenDutyCycle; i++)
+        items.at(j)->child(k)->child(l)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,&smMotionTests));
 
     // Axis - Position
-    items.at(0)->addChild(new QTreeWidgetItem(QStringList({"Position", "", ""})));
+    items.at(j)->addChild(new QTreeWidgetItem(QStringList({"Position", "", ""})));
+    k = items.at(j)->childCount()-1;
     for(int i = mcsPosCMD; i <= mcsPosNLim; i++)
-        items.at(0)->child(1)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,&smMotionTests));
+        items.at(j)->child(k)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,&smMotionTests));
 
     // Axis - Position Control
-    items.at(0)->addChild(new QTreeWidgetItem(QStringList({"Position Loop", "", ""})));
+    items.at(j)->addChild(new QTreeWidgetItem(QStringList({"Position Loop", "", ""})));
+    k = items.at(j)->childCount()-1;
     for(int i = mcsPosCtrldT; i <= mcsPosCtrlcmdVel; i++)
-        items.at(0)->child(2)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,&smMotionTests));
+        items.at(j)->child(k)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,&smMotionTests));
 
     // Axis - Velocity
-    items.at(0)->addChild(new QTreeWidgetItem(QStringList({"Velocity", "", ""})));
+    items.at(j)->addChild(new QTreeWidgetItem(QStringList({"Velocity", "", ""})));
+    k = items.at(j)->childCount()-1;
     for(int i = mcsVelCMD; i <= mcsVelNLim; i++)
-        items.at(0)->child(3)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,&smMotionTests));
+        items.at(j)->child(k)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,&smMotionTests));
 
     // Axis - Velocity Control
-    items.at(0)->addChild(new QTreeWidgetItem(QStringList({"Velocity Loop", "", ""})));
+    items.at(j)->addChild(new QTreeWidgetItem(QStringList({"Velocity Loop", "", ""})));
+    k = items.at(j)->childCount()-1;
     for(int i = mcsVelCtrldT; i <= mcsVelCtrlSaturated; i++)
-        items.at(0)->child(4)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,&smMotionTests));
+        items.at(j)->child(k)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,&smMotionTests));
 
     // Axis - Current
-    items.at(0)->addChild(new QTreeWidgetItem(QStringList({"Current", "", ""})));
+    items.at(j)->addChild(new QTreeWidgetItem(QStringList({"Current", "", ""})));
+    k = items.at(j)->childCount()-1;
     for(int i = mcsCurCMD; i <= mcsCurNLim; i++)
-        items.at(0)->child(5)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,&smMotionTests));
+        items.at(j)->child(k)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,&smMotionTests));
 
     // Axis - Motor Model
-    items.at(0)->addChild(new QTreeWidgetItem(QStringList({"Motor Model", "", ""})));
+    items.at(j)->addChild(new QTreeWidgetItem(QStringList({"Motor Model", "", ""})));
+    k = items.at(j)->childCount()-1;
     for(int i = mcsMotConTorque; i <= mcsMotEff; i++)
-        items.at(0)->child(6)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,&smMotionTests));
+        items.at(j)->child(k)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,&smMotionTests));
 
     // Axis - Current Loop
-    items.at(0)->addChild(new QTreeWidgetItem(QStringList({"Current Loop", "", ""})));
+    items.at(j)->addChild(new QTreeWidgetItem(QStringList({"Current Loop", "", ""})));
+    k = items.at(j)->childCount()-1;
     for(int i = mcsCurCtrldT; i <= mcsCurCtrlSaturated; i++)
-        items.at(0)->child(7)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,&smMotionTests));
+        items.at(j)->child(k)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,&smMotionTests));
 
     // Axis - Torque, Voltage, PWM
-    items.at(0)->addChild(new QTreeWidgetItem(QStringList({"Torque, Volts, PWM", "", ""})));
-    for(int i = mcsPWMCMD; i <= mcsPWMCMD; i++)
-        items.at(0)->child(8)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,&smMotionTests));
+    items.at(j)->addChild(new QTreeWidgetItem(QStringList({"Torque, Volts, PWM", "", ""})));
+    k = items.at(j)->childCount()-1;
+    for(int i = mcsPWMCMD; i <= mcsEND-1; i++)
+        items.at(j)->child(k)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,&smMotionTests));
+
+    // Axis - Load Inertia
+    items.at(j)->addChild(new QTreeWidgetItem(QStringList({"Load Inertia", "", ""})));
+    k = items.at(j)->childCount()-1;
+    for(int i = mcsLoadAminRes; i <= mcsLoadEstFriction; i++)
+        items.at(j)->child(k)->addChild(new AxisSPDTreeWidgetItem((enum mcsSPDSelector)i,&smMotionTests));
 
     // Top Level Charts Structure
     items.append(new QTreeWidgetItem(QStringList({"Charts", "", ""})));
+    j = items.count()-1;
 
     // Charts - mainwindow
-    items.at(1)->addChild(new QTreeWidgetItem(QStringList({"RT Window", "", ""})));
+    items.at(j)->addChild(new QTreeWidgetItem(QStringList({"RT Window", "", ""})));
+    k = items.at(j)->childCount()-1;
     for(int i = guiPltWndwStart; i <= guiPltWindowRt; i++)
-        items.at(1)->child(0)->addChild(new GUISPDTreeWidgetItem((enum guiSPDSelector)i, ((qSPDChart*)mainChartView->chart())));
+        items.at(j)->child(k)->addChild(new GUISPDTreeWidgetItem((enum guiSPDSelector)i, ((qSPDChart*)mainChartView->chart())));
 
     // Charts - first line series
-    items.at(1)->addChild(new QTreeWidgetItem(QStringList({"Line Series 0", "", ""})));
+    items.at(j)->addChild(new QTreeWidgetItem(QStringList({"Line Series 0", "", ""})));
+    k = items.at(j)->childCount()-1;
     for(int i = guiChrt0MaxX; i <= guiChrt0DurPerSamp; i++)
-        items.at(1)->child(1)->addChild(new GUISPDTreeWidgetItem((enum guiSPDSelector)i, ((qSPDChart*)mainChartView->chart())));
+        items.at(j)->child(k)->addChild(new GUISPDTreeWidgetItem((enum guiSPDSelector)i, ((qSPDChart*)mainChartView->chart())));
 
     // Now use the list of nodes to populate the Top Level TreeView
     treeWidget->insertTopLevelItems(0, items);
@@ -339,22 +389,24 @@ void MainWindow::spdTableChange(QTreeWidgetItem* wd,int i)
 {
     int minIndex = 0;
     SPDStruct* arPtr = nullptr;
+    SPDTreeWidgetItem* mySPDTreeWidgetPtr = ((SPDTreeWidgetItem*)wd);
+    qSPDChart* mySPDChartPtr = ((qSPDChart*)mainChartView->chart());
     if(i==1 && fromEdit)
     {
-        if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==&smMotionTests)
+        if(mySPDTreeWidgetPtr->GetDataPtrIn()==smMotionTests.getSPDArray()[mySPDTreeWidgetPtr->GetVarSelectionIn()].addr)
         {
             minIndex = mcsNone;
             arPtr = smMotionTests.getSPDArray();
         }
-        else if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==((qSPDChart*)mainChartView->chart()))
+        else if(mySPDTreeWidgetPtr->GetDataPtrIn()==mySPDChartPtr->getSPDArray()[mySPDTreeWidgetPtr->GetVarSelectionIn()].addr)
         {
             minIndex = guiNone;
-            arPtr = ((qSPDChart*)mainChartView->chart())->getSPDArray();
+            arPtr = mySPDChartPtr->getSPDArray();
         }
 
-        if(arPtr!=nullptr&&((SPDTreeWidgetItem*)wd)->GetVarSelectionIn()>minIndex)
+        if(arPtr!=nullptr&&mySPDTreeWidgetPtr->GetVarSelectionIn()>minIndex)
         {
-            if(!arPtr[((SPDTreeWidgetItem*)wd)->GetVarSelectionIn()].readonly)
+            if(!arPtr[mySPDTreeWidgetPtr->GetVarSelectionIn()].readonly)
             {
                 // NEW SPD set from String Function - Use it HERE!
 
@@ -362,7 +414,7 @@ void MainWindow::spdTableChange(QTreeWidgetItem* wd,int i)
                 bool goodParse;
                 float tempFloat = wd->text(i).toFloat(&goodParse);
                 if(goodParse)
-                    setSPDFloatValue(tempFloat, ((SPDTreeWidgetItem*)wd)->GetVarSelectionIn(), arPtr);
+                    setSPDFloatValue(tempFloat, mySPDTreeWidgetPtr->GetVarSelectionIn(), arPtr);
             }
         }
         wd->setFlags(wd->flags() & ~Qt::ItemIsEditable);
@@ -370,26 +422,27 @@ void MainWindow::spdTableChange(QTreeWidgetItem* wd,int i)
     }
 
 }
-
 void MainWindow::spdTableEditItem(QTreeWidgetItem* wd,int i)
 {
     int minIndex = 0;
     SPDStruct* arPtr = nullptr;
+    SPDTreeWidgetItem* mySPDTreeWidgetPtr = ((SPDTreeWidgetItem*)wd);
+    qSPDChart* mySPDChartPtr = ((qSPDChart*)mainChartView->chart());
     if(i==1)
     {
-        if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==&smMotionTests)
+        if(mySPDTreeWidgetPtr->GetDataPtrIn()==smMotionTests.getSPDArray()[mySPDTreeWidgetPtr->GetVarSelectionIn()].addr)
         {
             minIndex = mcsNone;
             arPtr = smMotionTests.getSPDArray();
         }
-        else if(((SPDTreeWidgetItem*)wd)->GetDataPtrIn()==((qSPDChart*)mainChartView->chart()))
+        else if(mySPDTreeWidgetPtr->GetDataPtrIn()==mySPDChartPtr->getSPDArray()[mySPDTreeWidgetPtr->GetVarSelectionIn()].addr)
         {
             minIndex = guiNone;
             arPtr = ((qSPDChart*)mainChartView->chart())->getSPDArray();
         }
-        if(arPtr!=nullptr&&((SPDTreeWidgetItem*)wd)->GetVarSelectionIn()>minIndex)
+        if(arPtr!=nullptr&&mySPDTreeWidgetPtr->GetVarSelectionIn()>minIndex)
         {
-            if(!arPtr[((SPDTreeWidgetItem*)wd)->GetVarSelectionIn()].readonly)
+            if(!arPtr[mySPDTreeWidgetPtr->GetVarSelectionIn()].readonly)
             {
                 wd->setFlags(wd->flags() | Qt::ItemIsEditable);
                 wd->treeWidget()->editItem(wd, i);
@@ -398,6 +451,7 @@ void MainWindow::spdTableEditItem(QTreeWidgetItem* wd,int i)
         }
     }
 }
+
 void MainWindow::setNewMainChart()
 {
     mainChartView->setChart(new qSPDChart());
@@ -505,7 +559,7 @@ void MainWindow::LatchAndUpdate()
     start = QTime::currentTime().msecsSinceStartOfDay();
     if(runPlots || jogonecycle)
     {
-        for(int kd = 0; kd < latchNUpdateMS; kd++)
+        for(int kd = 0; kd < latchNUpdateMS; kd++) // for each real-time ms
         {
             // run the model
             smMotionTests.execute();
@@ -515,7 +569,7 @@ void MainWindow::LatchAndUpdate()
             {
                 for(int j = 0; j < AllAxisLineSeries->count(); j++)
                 {
-                    AllAxisLineSeries->at(j)->getLine()->LatchTempData(getSPDFloatValue(mcsMotTime,smMotionTests.getSPDArray()));
+                    AllAxisLineSeries->at(j)->getLine()->LatchTempData(getSPDFloatValue(mcsAxTime,smMotionTests.getSPDArray()));
                 }
             }
         }
@@ -553,17 +607,25 @@ void MainWindow::LaunchNewWindow()
 }
 void MainWindow::closeEvent(QCloseEvent *event)
 {
+    runPlots = false;
+    LatchTimer->stop();
     int i;
-    for(i = 0; i < childChartViews->count(); i++)
+    if(childChartViews!=nullptr)
     {
-        childChartViews->at(i)->close();
+        for(i = 0; i < childChartViews->count(); i++)
+        {
+            childChartViews->at(i)->close();
+        }
     }
     if(treeWidget!=nullptr)
         treeWidget->close();
     QWidget::closeEvent(event);
+
 }
 void MainWindow::ToggleSPDSetting()
 {
+    AxisLineSeriesMap* myAxisLineSeries = nullptr;
+    SPDLineSeries* myLineSeries = nullptr;
     QObject* obj = sender();
     bool isPresent=false;
     // is the selected SPD present on the main chart?
@@ -575,21 +637,33 @@ void MainWindow::ToggleSPDSetting()
         if(SPDSelectionMenuActions->at(i-(mcsNone+1))==obj)
         {
            // is the Axis SPD at this index on the main chart?
-           SPDLineSeries* myLineSeries = ((qSPDChart*)mainChartView->chart())->getFromChart(i);
-           if(myLineSeries!=nullptr)
-           {
-               isPresent = true;
-               ((qSPDChart*)mainChartView->chart())->removeSeries(myLineSeries);
-               for(int q = 0; q<AllAxisLineSeries->count(); q++)
-               {
-                   if(AllAxisLineSeries->at(q)->getLine() == myLineSeries)
-                   {
-                       AllAxisLineSeries->removeAt(q);
-                       break;
-                   }
-               }
-            }
+           myLineSeries = ((qSPDChart*)mainChartView->chart())->getFromChart(smMotionTests.getSPDArray()[i].addr);
+
         }
+        if(myLineSeries!=nullptr)
+        {
+            isPresent = true;
+            ((qSPDChart*)mainChartView->chart())->removeSeries(myLineSeries);
+            for(int q = 0; q<AllAxisLineSeries->count(); q++)
+            {
+                if(AllAxisLineSeries->at(q)->getLine() == myLineSeries)
+                {
+                    AllAxisLineSeries->removeAt(q);
+                    break;
+                }
+            }
+            if(AllAxisLineSeries->count()==0)
+            {
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MaxX].size = 0;
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MaxX].addr = nullptr;
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MinX].size = 0;
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MinX].addr = nullptr;
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MaxY].size = 0;
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MaxY].addr = nullptr;
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MinY].size = 0;
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MinY].addr = nullptr;
+            }
+         }
     }
 
     // if should, add the SPD to the main chart
@@ -599,43 +673,57 @@ void MainWindow::ToggleSPDSetting()
         {
            if(SPDSelectionMenuActions->at(i-(mcsNone+1))==obj)
            {
-                AxisLineSeriesMap* myAxisLineSeries = new AxisLineSeriesMap((enum mcsSPDSelector)i, &smMotionTests, ((qSPDChart*)mainChartView->chart()));
+                myAxisLineSeries = new AxisLineSeriesMap(0,(enum mcsSPDSelector)i, &smMotionTests, ((qSPDChart*)mainChartView->chart()), true);
 
-               if(AllAxisLineSeries==nullptr)
-               {
-                   ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltDuration].size = sizeof(plotDuration);
-                   ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltDuration].addr = &plotDuration;
-                   ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltBegin].size = sizeof(plotBegin);
-                   ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltBegin].addr = &plotBegin;
-                   ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltWindowRt].size = sizeof(plotWindowRT);
-                   ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltWindowRt].addr = &plotWindowRT;
-
-                   ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltWndwStart].size = sizeof(((qSPDChart*)mainChartView->chart())->plotWindowStart);
-                   ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltWndwStart].addr = &((qSPDChart*)mainChartView->chart())->plotWindowStart;
-                   ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltWndwSamples].size = sizeof(((qSPDChart*)mainChartView->chart())->plotWindowSamples);
-                   ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltWndwSamples].addr = &((qSPDChart*)mainChartView->chart())->plotWindowSamples;
-                   ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MaxX].size = sizeof(myAxisLineSeries->getLine()->getLimits()->maxX);
-                   ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MaxX].addr = &myAxisLineSeries->getLine()->getLimits()->maxX;
-                   ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MinX].size = sizeof(myAxisLineSeries->getLine()->getLimits()->minX);
-                   ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MinX].addr = &myAxisLineSeries->getLine()->getLimits()->minX;
-                   ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MaxY].size = sizeof(myAxisLineSeries->getLine()->getLimits()->maxY);
-                   ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MaxY].addr = &myAxisLineSeries->getLine()->getLimits()->maxY;
-                   ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MinY].size = sizeof(myAxisLineSeries->getLine()->getLimits()->minY);
-                   ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MinY].addr = &myAxisLineSeries->getLine()->getLimits()->minY;
-
-                   AllAxisLineSeries=new QList<AxisLineSeriesMap*>();
-               }
-                AllAxisLineSeries->append(myAxisLineSeries);
                break;
            }
+
         }
+
+
+        if(AllAxisLineSeries==nullptr){
+            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltDuration].size = sizeof(plotDuration);
+            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltDuration].addr = &plotDuration;
+            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltBegin].size = sizeof(plotBegin);
+            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltBegin].addr = &plotBegin;
+            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltWindowRt].size = sizeof(plotWindowRT);
+            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltWindowRt].addr = &plotWindowRT;
+
+            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltWndwStart].size = sizeof(((qSPDChart*)mainChartView->chart())->plotWindowStart);
+            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltWndwStart].addr = &((qSPDChart*)mainChartView->chart())->plotWindowStart;
+            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltWndwSamples].size = sizeof(((qSPDChart*)mainChartView->chart())->plotWindowSamples);
+            ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiPltWndwSamples].addr = &((qSPDChart*)mainChartView->chart())->plotWindowSamples;
+            AllAxisLineSeries=new QList<AxisLineSeriesMap*>();
+        }
+
+        if(myAxisLineSeries!=nullptr)
+            AllAxisLineSeries->append(myAxisLineSeries);
+
+        if(AllAxisLineSeries!=nullptr)
+        {
+            if(AllAxisLineSeries->count()>0)
+            {
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MaxX].size = sizeof(AllAxisLineSeries->at(0)->getLine()->getLimits()->maxX);
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MaxX].addr = &AllAxisLineSeries->at(0)->getLine()->getLimits()->maxX;
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MinX].size = sizeof(AllAxisLineSeries->at(0)->getLine()->getLimits()->minX);
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MinX].addr = &AllAxisLineSeries->at(0)->getLine()->getLimits()->minX;
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MaxY].size = sizeof(AllAxisLineSeries->at(0)->getLine()->getLimits()->maxY);
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MaxY].addr = &AllAxisLineSeries->at(0)->getLine()->getLimits()->maxY;
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MinY].size = sizeof(AllAxisLineSeries->at(0)->getLine()->getLimits()->minY);
+                ((qSPDChart*)mainChartView->chart())->getSPDArray()[guiChrt0MinY].addr = &AllAxisLineSeries->at(0)->getLine()->getLimits()->minY;
+            }
+        }
+
     }
 
     mainChartView->chart()->update();
 
-    if(AllAxisLineSeries->count()>0)
-        duplicatChartAction->setEnabled(true);
-    else
-        duplicatChartAction->setEnabled(false);
+    if(AllAxisLineSeries!=nullptr)
+    {
+        if(AllAxisLineSeries->count()>0)
+            duplicatChartAction->setEnabled(true);
+        else
+            duplicatChartAction->setEnabled(false);
+    }
 }
 
